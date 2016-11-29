@@ -9,68 +9,62 @@ module Database.Bolt.PackStream
 
 import           Data.Binary
 import           Data.Binary.IEEE754
-import           Data.ByteString      (ByteString, append, cons, singleton)
-import qualified Data.ByteString      as B (concat, length, pack)
-import           Data.ByteString.Lazy (toStrict)
-import           Data.Map.Strict      (Map (..), assocs, size)
-import           Data.Text            (Text)
-import           Data.Text.Encoding   (encodeUtf8)
-import           GHC.Float            (float2Double)
+import           Data.ByteString               (ByteString, append, cons,
+                                                singleton)
+import qualified Data.ByteString               as B (concat, length, pack)
+import           Data.ByteString.Lazy          (toStrict)
+import           Data.Map.Strict               (Map (..), assocs, size)
+import           Data.Text                     (Text)
+import           Data.Text.Encoding            (encodeUtf8)
+import           Database.Bolt.Internal.Common
+import           Database.Bolt.Internal.Codes
+import           GHC.Float                     (float2Double)
 
 class PackStream a where
   pack :: a -> ByteString
 
 data PS = forall a. PackStream a => PS a
-type PSObj = Map ByteString PS
+type PSObj = Map Text PS
 
 instance PackStream () where
-  pack () = singleton 192
+  pack () = singleton nullCode
 
 instance PackStream Bool where
-  pack False = singleton 194
-  pack True  = singleton 195
+  pack False = singleton falseCode
+  pack True  = singleton trueCode
 
 instance PackStream Int where
   pack int | isTinyInt int = encodeStrict (fromIntegral int :: Word8)
-           | isIntX  8 int = cons 200 $ encodeStrict (fromIntegral int :: Word8)
-           | isIntX 16 int = cons 201 $ encodeStrict (fromIntegral int :: Word16)
-           | isIntX 32 int = cons 202 $ encodeStrict (fromIntegral int :: Word32)
-           | isIntX 64 int = cons 203 $ encodeStrict (fromIntegral int :: Word64)
+           | isIntX  8 int = cons  int8Code $ encodeStrict (fromIntegral int :: Word8)
+           | isIntX 16 int = cons int16Code $ encodeStrict (fromIntegral int :: Word16)
+           | isIntX 32 int = cons int32Code $ encodeStrict (fromIntegral int :: Word32)
+           | isIntX 64 int = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
 
 instance PackStream Integer where
   pack int | isIntX 64 int = pack (fromIntegral int :: Int)
            | otherwise     = error "Cannot pack so large Integer"
 
 instance PackStream Double where
-  pack dbl = cons 193 $ encodeStrict (doubleToWord dbl)
+  pack dbl = cons doubleCode $ encodeStrict (doubleToWord dbl)
 
 instance PackStream Float where
-  pack flt = cons 193 $ encodeStrict (doubleToWord (float2Double flt))
+  pack flt = cons doubleCode $ encodeStrict (doubleToWord (float2Double flt))
 
 instance PackStream Text where
-  pack text = mkPackedCollection (B.length pbs) pbs (128, 208, 209, 210)
+  pack text = mkPackedCollection (B.length pbs) pbs (textConst, text8Code, text16Code, text32Code)
     where pbs = encodeUtf8 text
 
 instance PackStream a => PackStream [a] where
-  pack lst = mkPackedCollection (length lst) pbs (144, 212, 213, 214)
+  pack lst = mkPackedCollection (length lst) pbs (listConst, list8Code, list16Code, list32Code)
     where pbs = B.concat $ map pack lst
 
 instance PackStream a => PackStream (Map Text a) where
-  pack dict = mkPackedCollection (size dict) pbs (160, 216, 217, 218)
+  pack dict = mkPackedCollection (size dict) pbs (dictConst, dict8Code, dict16Code, dict32Code)
     where pbs = B.concat $ map pack $ concatMap mkPair $ assocs dict
           mkPair (key, val) = [PS key, PS val]
 
 instance PackStream PS where
   pack (PS a) = pack a
-
-inRange :: Ord a => (a, a) -> a -> Bool
-inRange (low, up) x = low <= x && x < up
-
-isTinyInt :: Integral a => a -> Bool
-isTinyInt = inRange (-2^4, 2^7 - 1)
-
-isIntX :: Integral x => x -> x -> Bool
-isIntX p = inRange (-2^(p-1), 2^(p-1) - 1)
 
 encodeStrict :: Binary a => a -> ByteString
 encodeStrict = toStrict . encode
