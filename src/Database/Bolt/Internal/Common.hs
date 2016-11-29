@@ -1,7 +1,9 @@
 module Database.Bolt.Internal.Common where
 
-import Data.Binary
-import Control.Applicative (liftA2)
+import           Control.Applicative (liftA2)
+import           Data.Binary
+import           Data.Bits
+
 
 inRange :: Ord a => (a, a) -> a -> Bool
 inRange (low, up) x = low <= x && x < up
@@ -26,3 +28,6 @@ isTinyDict = liftA2 (&&) (< 176) (>= 160)
 
 convertToInt :: Integral a => a -> Int
 convertToInt = fromIntegral
+
+getSize :: Word8 -> Int
+getSize x = fromIntegral $ x .&. 15

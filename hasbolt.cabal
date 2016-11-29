@@ -15,11 +15,16 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
-                     , Database.Bolt.PackStream
-                     , Database.Bolt.Unpack
+  exposed-modules:     Database.Bolt.PackStream
+                     , Database.Bolt.UnpackStream
   other-modules:       Database.Bolt.Internal.Codes
                      , Database.Bolt.Internal.Common
+                     , Database.Bolt.Unpack.Primitive
+                     , Database.Bolt.Unpack.Number
+                     , Database.Bolt.Unpack.Text
+                     , Database.Bolt.Unpack.List
+                     , Database.Bolt.Unpack.Dict
+                     , Database.Bolt.Unpack.UnpackStream
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , text

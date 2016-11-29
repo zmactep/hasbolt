@@ -1,10 +1,7 @@
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
-{-# LANGUAGE OverloadedStrings         #-}
 
 module Database.Bolt.PackStream
     ( PackStream (..)
-    , PS (..), PSObj (..)
     ) where
 
 import           Data.Binary
@@ -22,9 +19,6 @@ import           GHC.Float                     (float2Double)
 
 class PackStream a where
   pack :: a -> ByteString
-
-data PS = forall a. PackStream a => PS a
-type PSObj = Map Text PS
 
 instance PackStream () where
   pack () = singleton nullCode
@@ -60,11 +54,8 @@ instance PackStream a => PackStream [a] where
 
 instance PackStream a => PackStream (Map Text a) where
   pack dict = mkPackedCollection (size dict) pbs (dictConst, dict8Code, dict16Code, dict32Code)
-    where pbs = B.concat $ map pack $ concatMap mkPair $ assocs dict
-          mkPair (key, val) = [PS key, PS val]
-
-instance PackStream PS where
-  pack (PS a) = pack a
+    where pbs = B.concat $ map mkPairPack $ assocs dict
+          mkPairPack (key, val) = pack key `append` pack val
 
 encodeStrict :: Binary a => a -> ByteString
 encodeStrict = toStrict . encode
