@@ -1,6 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Data.Hex
+import           Data.Map                 (Map (..))
+import qualified Data.Map                 as M (empty, fromList)
+import           Data.Text                (Text)
 import qualified Data.Text                as T (pack)
 import           Database.Bolt.PackStream
 import           Test.Hspec
@@ -28,6 +31,9 @@ main = hspec $
              hex (pack ([]::[Int])) `shouldBe` "90"
              hex (pack ([1,2,3]::[Int])) `shouldBe` "93010203"
              hex (pack ([1..40]::[Int])) `shouldBe` "D4280102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728"
+           it "packs dicts correct" $ do
+             hex (pack (M.empty :: Map Text ())) `shouldBe` "A0"
+             hex (pack (M.fromList [(T.pack "one", T.pack "eins")])) `shouldBe` "A1836F6E658465696E73"
            it "packs () correct" $ do
              hex (pack ()) `shouldBe` "C0"
              return ()
