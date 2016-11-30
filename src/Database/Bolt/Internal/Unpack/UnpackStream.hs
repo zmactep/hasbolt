@@ -1,4 +1,4 @@
-module Database.Bolt.Unpack.UnpackStream
+module Database.Bolt.Internal.Unpack.UnpackStream
     ( UnpackStream (..)
     , UnpackST (..)
     , unpackAll, getBS

@@ -1,12 +1,12 @@
-module Database.Bolt.Unpack.Primitive
+module Database.Bolt.Internal.Unpack.Primitive
     ( UnpackStream (..)
     ) where
 
 import           Data.Word                         (Word8)
 import           Database.Bolt.Internal.Codes
 import           Database.Bolt.Internal.Common
-import           Database.Bolt.Unpack.Number
-import           Database.Bolt.Unpack.UnpackStream
+import           Database.Bolt.Internal.Unpack.Number
+import           Database.Bolt.Internal.Unpack.UnpackStream
 
 instance UnpackStream () where
   unpack = unpackNull

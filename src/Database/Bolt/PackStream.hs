@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Database.Bolt.PackStream
     ( PackStream (..)

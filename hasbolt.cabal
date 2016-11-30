@@ -19,12 +19,16 @@ library
                      , Database.Bolt.UnpackStream
   other-modules:       Database.Bolt.Internal.Codes
                      , Database.Bolt.Internal.Common
-                     , Database.Bolt.Unpack.Primitive
-                     , Database.Bolt.Unpack.Number
-                     , Database.Bolt.Unpack.Text
-                     , Database.Bolt.Unpack.List
-                     , Database.Bolt.Unpack.Dict
-                     , Database.Bolt.Unpack.UnpackStream
+                     , Database.Bolt.Internal.Unpack.Primitive
+                     , Database.Bolt.Internal.Unpack.Number
+                     , Database.Bolt.Internal.Unpack.Text
+                     , Database.Bolt.Internal.Unpack.List
+                     , Database.Bolt.Internal.Unpack.Dict
+                     , Database.Bolt.Internal.Unpack.UnpackStream
+                     , Database.Bolt.Internal.Protocol.Types
+                     , Database.Bolt.Internal.Protocol.Request
+                     , Database.Bolt.Internal.Protocol.Response
+                     , Database.Bolt.Internal.Protocol.Connection
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , text
@@ -32,6 +36,8 @@ library
                      , binary
                      , data-binary-ieee754
                      , transformers
+                     , network-simple
+                     , data-default
   default-language:    Haskell2010
 
 executable hasbolt-exe

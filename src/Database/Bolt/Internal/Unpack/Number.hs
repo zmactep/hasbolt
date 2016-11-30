@@ -1,4 +1,4 @@
-module Database.Bolt.Unpack.Number
+module Database.Bolt.Internal.Unpack.Number
     ( UnpackStream (..)
     , unpackW8, unpackW16, unpackW32, unpackW64
     , unpackI8, unpackI16, unpackI32, unpackI64
@@ -14,7 +14,7 @@ import           Data.Word                         (Word16, Word32, Word64,
 import           GHC.Float                     (double2Float)
 import           Database.Bolt.Internal.Codes
 import           Database.Bolt.Internal.Common
-import           Database.Bolt.Unpack.UnpackStream
+import           Database.Bolt.Internal.Unpack.UnpackStream
 
 instance UnpackStream Int where
   unpack = unpackInt

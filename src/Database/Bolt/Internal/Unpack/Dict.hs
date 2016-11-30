@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Database.Bolt.Unpack.Dict
+module Database.Bolt.Internal.Unpack.Dict
     ( UnpackStream (..)
     ) where
 
@@ -11,9 +11,9 @@ import           Data.Text                         (Text)
 import           Data.Word                         (Word8)
 import           Database.Bolt.Internal.Codes
 import           Database.Bolt.Internal.Common
-import           Database.Bolt.Unpack.Number
-import           Database.Bolt.Unpack.Text
-import           Database.Bolt.Unpack.UnpackStream
+import           Database.Bolt.Internal.Unpack.Number
+import           Database.Bolt.Internal.Unpack.Text
+import           Database.Bolt.Internal.Unpack.UnpackStream
 
 instance UnpackStream a => UnpackStream (Map Text a) where
   unpack = unpackDict
