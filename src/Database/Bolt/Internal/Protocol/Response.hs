@@ -3,7 +3,7 @@ module Database.Bolt.Internal.Protocol.Response
     , UnpackStream (..)
     ) where
 
-import           Database.Bolt.UnpackStream (UnpackST (..), UnpackStream (..),
+import           Database.Bolt.UnpackStream (UnpackT (..), UnpackStream (..),
                                              Unpacked)
 
 data Response = ResponseSuccess Unpacked
@@ -14,7 +14,7 @@ data Response = ResponseSuccess Unpacked
 instance UnpackStream Response where
   unpack = unpack >>= unpackByFirstByte
 
-unpackByFirstByte :: Monad m => Int -> UnpackST m Response
+unpackByFirstByte :: Monad m => Int -> UnpackT m Response
 unpackByFirstByte w | w == 112  = ResponseSuccess <$> unpack
                     | w == 113  = ResponseRecord  <$> unpack
                     | w == 126  = ResponseIgnored <$> unpack

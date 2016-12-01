@@ -14,17 +14,17 @@ instance UnpackStream () where
 instance UnpackStream Bool where
   unpack = unpackBool
 
-unpackBool :: Monad m => UnpackST m Bool
+unpackBool :: Monad m => UnpackT m Bool
 unpackBool = unpackW8 >>= unpackBoolByMarker
 
-unpackNull :: Monad m => UnpackST m ()
+unpackNull :: Monad m => UnpackT m ()
 unpackNull = unpackW8 >>= unpackNullByMarker
 
-unpackBoolByMarker :: Monad m => Word8 -> UnpackST m Bool
+unpackBoolByMarker :: Monad m => Word8 -> UnpackT m Bool
 unpackBoolByMarker m | m == falseCode = return False
                      | m == trueCode  = return True
                      | otherwise      = fail "Not a Bool value"
 
-unpackNullByMarker :: Monad m => Word8 -> UnpackST m ()
+unpackNullByMarker :: Monad m => Word8 -> UnpackT m ()
 unpackNullByMarker m | m == nullCode = return ()
                      | otherwise     = fail "Not a Null value"

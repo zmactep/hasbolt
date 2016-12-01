@@ -18,20 +18,20 @@ import           Database.Bolt.Internal.Unpack.UnpackStream
 instance UnpackStream a => UnpackStream (Map Text a) where
   unpack = unpackDict
 
-unpackDict :: (Monad m, UnpackStream a) => UnpackST m (Map Text a)
+unpackDict :: (Monad m, UnpackStream a) => UnpackT m (Map Text a)
 unpackDict = unpackW8 >>= unpackDictByMarker
 
-unpackDictByMarker :: (Monad m, UnpackStream a) => Word8 -> UnpackST m (Map Text a)
+unpackDictByMarker :: (Monad m, UnpackStream a) => Word8 -> UnpackT m (Map Text a)
 unpackDictByMarker m | isTinyDict m    = unpackDictBySize (getSize m)
                      | m == dict8Code  = convertToInt <$> unpackW8 >>= unpackDictBySize
                      | m == dict16Code = convertToInt <$> unpackW16 >>= unpackDictBySize
                      | m == dict32Code = convertToInt <$> unpackW32 >>= unpackDictBySize
                      | otherwise       = error "Not a Dict value"
 
-unpackDictBySize :: (Monad m, UnpackStream a) => Int -> UnpackST m (Map Text a)
+unpackDictBySize :: (Monad m, UnpackStream a) => Int -> UnpackT m (Map Text a)
 unpackDictBySize = (M.fromList <$>) . unpackPairsBySize
 
-unpackPairsBySize :: (Monad m, UnpackStream a) => Int -> UnpackST m [(Text, a)]
+unpackPairsBySize :: (Monad m, UnpackStream a) => Int -> UnpackT m [(Text, a)]
 unpackPairsBySize size = forM [1..size] $ const $ do
                            key <- unpack
                            value <- unpack

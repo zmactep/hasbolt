@@ -1,7 +1,7 @@
 module Database.Bolt.UnpackStream
-    ( UnpackStream (..), UnpackST (..)
+    ( UnpackStream (..), UnpackT (..)
     , Unpacked (..)
-    , unpackAll
+    , runUnpackT
     ) where
 
 import           Control.Applicative                        ((<$>))
@@ -30,7 +30,7 @@ data Unpacked = N ()
 instance UnpackStream Unpacked where
   unpack = firstByte >>= unpackByFirstByte
 
-unpackByFirstByte :: Monad m => Word8 -> UnpackST m Unpacked
+unpackByFirstByte :: Monad m => Word8 -> UnpackT m Unpacked
 unpackByFirstByte w | isNull   w = N <$> unpack
                     | isBool   w = B <$> unpack
                     | isInt    w = I <$> unpack
@@ -40,6 +40,6 @@ unpackByFirstByte w | isNull   w = N <$> unpack
                     | isDict   w = M <$> unpack
                     | otherwise  = fail "Not recognisable type"
 
-firstByte :: Monad m => UnpackST m Word8
+firstByte :: Monad m => UnpackT m Word8
 firstByte = do w <- topBS 1
                return $ decode (fromStrict w)

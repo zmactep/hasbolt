@@ -28,10 +28,10 @@ instance UnpackStream Double where
 instance UnpackStream Float where
   unpack = double2Float <$> unpackDouble
 
-unpackInt :: Monad m => UnpackST m Int
+unpackInt :: Monad m => UnpackT m Int
 unpackInt = unpackW8 >>= unpackIntByMarker
 
-unpackIntByMarker :: Monad m => Word8 -> UnpackST m Int
+unpackIntByMarker :: Monad m => Word8 -> UnpackT m Int
 unpackIntByMarker m | isTinyWord m   = return . convertToInt $ (fromIntegral m :: Int8)
                     | m == int8Code  = convertToInt <$> unpackI8
                     | m == int16Code = convertToInt <$> unpackI16
@@ -39,36 +39,36 @@ unpackIntByMarker m | isTinyWord m   = return . convertToInt $ (fromIntegral m :
                     | m == int64Code = convertToInt <$> unpackI64
                     | otherwise      = fail "Not an Int value"
 
-unpackDouble :: Monad m => UnpackST m Double
+unpackDouble :: Monad m => UnpackT m Double
 unpackDouble = unpackW8 >>= unpackDoubleByMarker
 
-unpackDoubleByMarker :: Monad m => Word8 -> UnpackST m Double
+unpackDoubleByMarker :: Monad m => Word8 -> UnpackT m Double
 unpackDoubleByMarker m | m == doubleCode = wordToDouble <$> unpackW64
                        | otherwise       = fail "Not a Double value"
 
-unpackNum :: (Monad m, Binary a, Num a) => Int -> UnpackST m a
+unpackNum :: (Monad m, Binary a, Num a) => Int -> UnpackT m a
 unpackNum = (decode . fromStrict <$>) . popBS
 
-unpackW8 :: Monad m => UnpackST m Word8
+unpackW8 :: Monad m => UnpackT m Word8
 unpackW8 = unpackNum 1
 
-unpackW16 :: Monad m => UnpackST m Word16
+unpackW16 :: Monad m => UnpackT m Word16
 unpackW16 = unpackNum 2
 
-unpackW32 :: Monad m => UnpackST m Word32
+unpackW32 :: Monad m => UnpackT m Word32
 unpackW32 = unpackNum 4
 
-unpackW64 :: Monad m => UnpackST m Word64
+unpackW64 :: Monad m => UnpackT m Word64
 unpackW64 = unpackNum 8
 
-unpackI8 :: Monad m => UnpackST m Int8
+unpackI8 :: Monad m => UnpackT m Int8
 unpackI8 = unpackNum 1
 
-unpackI16 :: Monad m => UnpackST m Int16
+unpackI16 :: Monad m => UnpackT m Int16
 unpackI16 = unpackNum 2
 
-unpackI32 :: Monad m => UnpackST m Int32
+unpackI32 :: Monad m => UnpackT m Int32
 unpackI32 = unpackNum 4
 
-unpackI64 :: Monad m => UnpackST m Int64
+unpackI64 :: Monad m => UnpackT m Int64
 unpackI64 = unpackNum 8

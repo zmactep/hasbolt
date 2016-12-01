@@ -1,7 +1,7 @@
 module Database.Bolt.Internal.Unpack.UnpackStream
     ( UnpackStream (..)
-    , UnpackST (..)
-    , unpackAll, popBS, topBS
+    , UnpackT (..)
+    , runUnpackT, popBS, topBS
     ) where
 
 import           Control.Applicative       ((<$>))
@@ -11,18 +11,18 @@ import qualified Data.ByteString           as B (drop, take)
 import           Data.Map                  (Map (..))
 import           Data.Text                 (Text)
 
-type UnpackST m a = StateT ByteString m a
+type UnpackT m a = StateT ByteString m a
 
 class UnpackStream a where
-  unpack :: Monad m => UnpackST m a
+  unpack :: Monad m => UnpackT m a
 
-unpackAll :: (UnpackStream a, Monad m) => ByteString -> m a
-unpackAll = (fst <$>) . runStateT unpack
+runUnpackT :: (UnpackStream a, Monad m) => ByteString -> m a
+runUnpackT = evalStateT unpack
 
-topBS :: Monad m => Int -> UnpackST m ByteString
+topBS :: Monad m => Int -> UnpackT m ByteString
 topBS size = gets (B.take size)
 
-popBS :: Monad m => Int -> UnpackST m ByteString
+popBS :: Monad m => Int -> UnpackT m ByteString
 popBS size = do str <- gets (B.take size)
                 modify (B.drop size)
                 return str
