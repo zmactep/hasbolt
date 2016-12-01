@@ -6,7 +6,7 @@ module Database.Bolt.Internal.Protocol.Request
     ) where
 
 import           Data.ByteString                       (append)
-import qualified Data.Map                              as M (fromList)
+import qualified Data.Map.Strict                       as M (fromList)
 import           Data.Text                             (Text)
 import qualified Data.Text                             as T (pack)
 import           Database.Bolt.Internal.Protocol.Types (BoltCfg (..))

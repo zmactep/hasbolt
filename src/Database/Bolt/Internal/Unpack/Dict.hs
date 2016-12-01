@@ -5,8 +5,8 @@ module Database.Bolt.Internal.Unpack.Dict
     ) where
 
 import           Control.Monad                     (forM)
-import           Data.Map                          (Map (..))
-import qualified Data.Map                          as M (fromList)
+import           Data.Map.Strict                   (Map (..))
+import qualified Data.Map.Strict                   as M (fromList)
 import           Data.Text                         (Text)
 import           Data.Word                         (Word8)
 import           Database.Bolt.Internal.Codes

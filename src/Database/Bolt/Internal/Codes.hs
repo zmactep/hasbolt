@@ -1,11 +1,17 @@
 module Database.Bolt.Internal.Codes where
 
-import Data.Word
+import           Control.Applicative (liftA2)
+import           Data.Word
+
+import Database.Bolt.Internal.Common
 
 -- Null
 
 nullCode :: Word8
 nullCode = 192
+
+isNull :: Word8 -> Bool
+isNull = (== nullCode)
 
 -- Bool
 
@@ -14,6 +20,9 @@ falseCode = 194
 
 trueCode :: Word8
 trueCode = 195
+
+isBool :: Word8 -> Bool
+isBool = liftA2 (||) (== trueCode) (== falseCode)
 
 -- Numbers
 
@@ -29,8 +38,17 @@ int32Code = 202
 int64Code :: Word8
 int64Code = 203
 
+isInt :: Word8 -> Bool
+isInt = do x <- liftA2 (||) (== int8Code) (== int16Code)
+           y <- liftA2 (||) (== int32Code) (== int64Code)
+           z <- isTinyWord
+           return $ x || y || z
+
 doubleCode :: Word8
 doubleCode = 193
+
+isDouble :: Word8 -> Bool
+isDouble = (== doubleCode)
 
 -- Text
 
@@ -46,6 +64,11 @@ text16Code = 209
 text32Code :: Word8
 text32Code = 210
 
+isText :: Word8 -> Bool
+isText = do x <- liftA2 (||) (== text8Code) (== text16Code)
+            y <- liftA2 (||) (== text32Code) isTinyText
+            return $ x || y
+
 -- List
 
 listConst :: Word8
@@ -60,6 +83,11 @@ list16Code = 213
 list32Code :: Word8
 list32Code = 214
 
+isList :: Word8 -> Bool
+isList = do x <- liftA2 (||) (== list8Code) (== list16Code)
+            y <- liftA2 (||) (== list32Code) isTinyList
+            return $ x || y
+
 -- Dict
 
 dictConst :: Word8
@@ -73,3 +101,8 @@ dict16Code = 217
 
 dict32Code :: Word8
 dict32Code = 218
+
+isDict :: Word8 -> Bool
+isDict = do x <- liftA2 (||) (== dict8Code) (== dict16Code)
+            y <- liftA2 (||) (== dict32Code) isTinyDict
+            return $ x || y

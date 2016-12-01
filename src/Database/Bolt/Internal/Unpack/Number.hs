@@ -47,7 +47,7 @@ unpackDoubleByMarker m | m == doubleCode = wordToDouble <$> unpackW64
                        | otherwise       = fail "Not a Double value"
 
 unpackNum :: (Monad m, Binary a, Num a) => Int -> UnpackST m a
-unpackNum = (decode . fromStrict <$>) . getBS
+unpackNum = (decode . fromStrict <$>) . popBS
 
 unpackW8 :: Monad m => UnpackST m Word8
 unpackW8 = unpackNum 1
