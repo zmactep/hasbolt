@@ -3,43 +3,73 @@ module Database.Bolt.Internal.Protocol.Connection
     ) where
 
 import           Control.Monad
-import           Control.Monad.IO.Class                  (MonadIO (..), liftIO)
+import           Control.Monad.IO.Class                   (MonadIO (..), liftIO)
 import           Control.Monad.Trans.State
-import           Data.Binary                             (Binary (..), decode,
-                                                          encode)
-import           Data.ByteString                         (ByteString, append)
-import qualified Data.ByteString                         as B (concat, empty)
-import           Data.ByteString.Lazy                    (fromStrict, toStrict)
-import           Data.Maybe                              (fromMaybe)
-import           Data.Word                               (Word16, Word32)
+import           Data.Binary                              (Binary (..), decode,
+                                                           encode)
+import           Data.ByteString                          (ByteString, append,
+                                                           cons, snoc)
+import qualified Data.ByteString                          as B (concat, empty,
+                                                                length, null,
+                                                                splitAt)
+import           Data.ByteString.Lazy                     (fromStrict, toStrict)
+import           Data.Hex
+import           Data.Maybe                               (fromMaybe)
+import           Data.Word                                (Word16, Word32)
 import           Database.Bolt.Internal.Protocol.Request
+import           Database.Bolt.Internal.Protocol.Response
 import           Database.Bolt.Internal.Protocol.Types
-import           Network.Simple.TCP                      (Socket, closeSock,
-                                                          connectSock, recv,
-                                                          send)
+import           Database.Bolt.UnpackStream
+import           Network.Simple.TCP                       (Socket, closeSock,
+                                                           connectSock, recv,
+                                                           send)
+import           Network.Socket                           (isConnected)
 
 connect :: BoltCfg -> IO Pipe
 connect bcfg = do (sock, addr) <- connectSock (host bcfg) (show $ port bcfg)
+                  let pipe = Pipe sock (maxChunkSize bcfg)
+                  checkConnection sock
                   send sock (toStrict . encode . magic $ bcfg)
+                  checkConnection sock
                   send sock (boltClientVersionProposal bcfg)
+                  checkConnection sock
                   serverVersion <- recvDecoded sock 4 0 :: IO Word32
                   when (serverVersion /= version bcfg) $
                     fail "Server version is incorrect"
-                  send sock $ pack (initByConfig bcfg)
-                  bs <- fetch sock
-                  return $ Pipe sock
+                  putStrLn "Sending authentification request"
+                  flush pipe $ initByConfig bcfg
+                  resp <- fetch pipe
+                  putStrLn $ "Auth response: " ++ show resp
+                  unless (isSuccess resp) $
+                    fail "Authentification error"
+                  return pipe
 
 close :: Pipe -> IO ()
 close = closeSock . connectionSocket
 
-fetch :: Socket -> IO ByteString
-fetch sock = execStateT fetchST B.empty
+flush :: Pipe -> Request -> IO ()
+flush pipe req = do let chunkSize = fromIntegral $ mcs pipe :: Int
+                    let chunks = splitInChunks chunkSize (pack req)
+                    let sizedChunkSet = B.concat $ addSizeToChunk <$> chunks
+                    send (connectionSocket pipe) (sizedChunkSet `snoc` 0 `snoc` 0)
+
+fetch :: Pipe -> IO Response
+fetch pipe = execStateT fetchST B.empty >>= runUnpackT
   where fetchST :: StateT ByteString IO ()
-        fetchST = do chunkSize <- recvDecoded sock 2 0 :: StateT ByteString IO Word16
+        fetchST = do let sock = connectionSocket pipe
+                     chunkSize <- recvDecoded sock 2 0 :: StateT ByteString IO Word16
+                     liftIO $ putStrLn $ "Chunk size: " ++ show chunkSize
                      when (chunkSize /= 0) $ do
-                       bs <- recvDecoded sock (fromIntegral chunkSize) B.empty :: StateT ByteString IO ByteString
-                       modify (`append` bs)
+                       chunk <- liftIO $ fromMaybe B.empty <$> recv sock (fromIntegral chunkSize)
+                       liftIO $ putStrLn $ "Chunk: " ++ show (hex $ fromStrict chunk)
+                       modify (`append` chunk)
                        fetchST
+                     return ()
+
+checkConnection :: Socket -> IO ()
+checkConnection sock = do status <- isConnected sock
+                          unless status $
+                            fail "Connection failed"
 
 recvDecoded :: (MonadIO m, Binary a) => Socket -> Int -> a -> m a
 recvDecoded sock size def = do raw <- liftIO $ recv sock size
@@ -47,3 +77,12 @@ recvDecoded sock size def = do raw <- liftIO $ recv sock size
 
 boltClientVersionProposal :: BoltCfg -> ByteString
 boltClientVersionProposal bcfg = B.concat $ toStrict . encode <$> [version bcfg, 0, 0, 0]
+
+addSizeToChunk :: ByteString -> ByteString
+addSizeToChunk bs = let sz = fromIntegral (B.length bs) :: Word16
+                    in toStrict (encode sz) `append` bs
+
+splitInChunks :: Int -> ByteString -> [ByteString]
+splitInChunks mx bs | B.null bs = []
+                    | otherwise = let (hd, rest) = B.splitAt mx bs
+                                  in hd : splitInChunks mx rest

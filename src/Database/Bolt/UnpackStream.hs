@@ -26,6 +26,7 @@ data Unpacked = N ()
               | T Text
               | L [Unpacked]
               | M (Map Text Unpacked)
+  deriving (Show, Eq)
 
 instance UnpackStream Unpacked where
   unpack = firstByte >>= unpackByFirstByte

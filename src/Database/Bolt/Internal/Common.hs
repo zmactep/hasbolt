@@ -4,7 +4,6 @@ import           Control.Applicative (liftA2)
 import           Data.Binary
 import           Data.Bits
 
-
 inRange :: Ord a => (a, a) -> a -> Bool
 inRange (low, up) x = low <= x && x < up
 
@@ -18,13 +17,16 @@ isTinyWord :: Word8 -> Bool
 isTinyWord = liftA2 (||) (< 128) (>= 240)
 
 isTinyText :: Word8 -> Bool
-isTinyText = liftA2 (&&) (< 144) (>= 128)
+isTinyText = liftA2 (&&) (>= 128) (< 144)
 
 isTinyList :: Word8 -> Bool
-isTinyList = liftA2 (&&) (< 160) (>= 144)
+isTinyList = liftA2 (&&) (>= 144) (< 160)
 
 isTinyDict :: Word8 -> Bool
-isTinyDict = liftA2 (&&) (< 176) (>= 160)
+isTinyDict = liftA2 (&&) (>= 160) (< 176)
+
+isTinyStruct :: Word8 -> Bool
+isTinyStruct = liftA2 (&&) (>= 176) (< 192)
 
 convertToInt :: Integral a => a -> Int
 convertToInt = fromIntegral

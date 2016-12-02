@@ -1,6 +1,6 @@
 module Database.Bolt.Internal.Codes where
 
-import           Control.Applicative (liftA2)
+import           Control.Applicative (liftA2, liftA3)
 import           Data.Word
 
 import Database.Bolt.Internal.Common
@@ -106,3 +106,17 @@ isDict :: Word8 -> Bool
 isDict = do x <- liftA2 (||) (== dict8Code) (== dict16Code)
             y <- liftA2 (||) (== dict32Code) isTinyDict
             return $ x || y
+
+-- Structure
+
+structConst :: Word8
+structConst = 176
+
+struct8Code :: Word8
+struct8Code = 220
+
+struct16Code :: Word8
+struct16Code = 221
+
+isStruct :: Word8 -> Bool
+isStruct = liftA3 (\x y z -> x || y || z) (== struct8Code) (== struct16Code) isTinyStruct

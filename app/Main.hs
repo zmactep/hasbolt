@@ -1,5 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
+import Database.Bolt.Protocol
 
 main :: IO ()
-main = putStrLn "Sample will be here"
+main = do pipe <- connect $ def { user = "neo4j", password = "12345" }
+          putStrLn "It is alive!"
+          close pipe

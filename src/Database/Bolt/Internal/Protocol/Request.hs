@@ -5,12 +5,17 @@ module Database.Bolt.Internal.Protocol.Request
     , initByConfig
     ) where
 
-import           Data.ByteString                       (append)
+import           Data.ByteString                       (ByteString, append,
+                                                        cons)
+import qualified Data.ByteString                       as B (concat)
 import qualified Data.Map.Strict                       as M (fromList)
 import           Data.Text                             (Text)
 import qualified Data.Text                             as T (pack)
+import           Data.Word                             (Word8, Word16)
+import           Database.Bolt.Internal.Codes
+import           Database.Bolt.Internal.PackStream     (PackStream (..),
+                                                        encodeStrict)
 import           Database.Bolt.Internal.Protocol.Types (BoltCfg (..))
-import           Database.Bolt.PackStream              (PackStream (..))
 
 data AuthToken = AuthToken { scheme      :: Text
                            , principal   :: Text
@@ -29,19 +34,26 @@ data Request = RequestInit { agent :: Text
              | RequestPullAll
 
 instance PackStream AuthToken where
-  pack at = pack $ M.fromList [ (T.pack "scheme", scheme at)
-                              , (T.pack "principal", principal at)
-                              , (T.pack "credentials", credentials at)
-                              ]
+  pack token = pack $ M.fromList [ (T.pack "scheme", scheme token)
+                                 , (T.pack "principal", principal token)
+                                 , (T.pack "credentials", credentials token)
+                                 ]
 
 instance PackStream Request where
-  pack (RequestInit userAgent authToken) = pack (1::Int) `append` pack userAgent `append` pack authToken
-  pack (RequestRun statement parameters) = pack (16::Int)
-  pack RequestAckFailure                 = pack (14::Int)
-  pack RequestReset                      = pack (15::Int)
-  pack RequestDiscardAll                 = pack (47::Int)
-  pack RequestPullAll                    = pack (63::Int)
+  pack (RequestInit userAgent authToken) = packRequest 1 [pack userAgent, pack authToken]
+  pack (RequestRun statement parameters) = packRequest 16 []
+  pack RequestAckFailure                 = packRequest 14 []
+  pack RequestReset                      = packRequest 15 []
+  pack RequestDiscardAll                 = packRequest 47 []
+  pack RequestPullAll                    = packRequest 63 []
 
 initByConfig :: BoltCfg -> Request
 initByConfig bcfg = RequestInit (userAgent bcfg) auth
   where auth = AuthToken (T.pack "basic") (user bcfg) (password bcfg)
+
+packRequest :: Word8 -> [ByteString] -> ByteString
+packRequest code pbss | len < 16   = (structConst + fromIntegral len) `cons` sigData
+                      | len < 2^8  = struct8Code `cons` fromIntegral len `cons` sigData
+                      | len < 2^16 = struct16Code `cons` encodeStrict len `append` sigData
+  where len = fromIntegral $ length pbss :: Word16
+        sigData = encodeStrict code `append` B.concat pbss
