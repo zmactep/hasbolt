@@ -28,6 +28,18 @@ isTinyDict = liftA2 (&&) (>= 160) (< 176)
 isTinyStruct :: Word8 -> Bool
 isTinyStruct = liftA2 (&&) (>= 176) (< 192)
 
+isNode :: Word8 -> Bool
+isNode = (== 78)
+
+isRelationship :: Word8 -> Bool
+isRelationship = (== 82)
+
+isURelationship :: Word8 -> Bool
+isURelationship = (== 114)
+
+isPath :: Word8 -> Bool
+isPath = (== 80)
+
 convertToInt :: Integral a => a -> Int
 convertToInt = fromIntegral
 

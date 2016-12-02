@@ -15,9 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Database.Bolt.PackStream
-                     , Database.Bolt.UnpackStream
-                     , Database.Bolt.Protocol
+  exposed-modules:     Database.Bolt
   other-modules:       Database.Bolt.Internal.Codes
                      , Database.Bolt.Internal.Common
                      , Database.Bolt.Internal.Unpack.Primitive
@@ -25,12 +23,15 @@ library
                      , Database.Bolt.Internal.Unpack.Text
                      , Database.Bolt.Internal.Unpack.List
                      , Database.Bolt.Internal.Unpack.Dict
+                     , Database.Bolt.Internal.Unpack.Structure
                      , Database.Bolt.Internal.Unpack.UnpackStream
                      , Database.Bolt.Internal.PackStream
                      , Database.Bolt.Internal.Protocol.Types
                      , Database.Bolt.Internal.Protocol.Request
                      , Database.Bolt.Internal.Protocol.Response
                      , Database.Bolt.Internal.Protocol.Connection
+                     , Database.Bolt.Protocol
+                     , Database.Bolt.NeoValue
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , text

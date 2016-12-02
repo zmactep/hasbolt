@@ -8,14 +8,16 @@ module Database.Bolt.Internal.Protocol.Request
 import           Data.ByteString                       (ByteString, append,
                                                         cons)
 import qualified Data.ByteString                       as B (concat)
+import           Data.Map.Strict                       (Map (..))
 import qualified Data.Map.Strict                       as M (fromList)
 import           Data.Text                             (Text)
 import qualified Data.Text                             as T (pack)
-import           Data.Word                             (Word8, Word16)
+import           Data.Word                             (Word16, Word8)
 import           Database.Bolt.Internal.Codes
 import           Database.Bolt.Internal.PackStream     (PackStream (..),
                                                         encodeStrict)
 import           Database.Bolt.Internal.Protocol.Types (BoltCfg (..))
+import           Database.Bolt.NeoValue                (NeoValue)
 
 data AuthToken = AuthToken { scheme      :: Text
                            , principal   :: Text
@@ -26,7 +28,7 @@ data Request = RequestInit { agent :: Text
                            , token :: AuthToken
                            }
              | RequestRun  { statement  :: Text
-                           , parameters :: Text
+                           , parameters :: Map Text NeoValue
                            }
              | RequestAckFailure
              | RequestReset
@@ -41,7 +43,7 @@ instance PackStream AuthToken where
 
 instance PackStream Request where
   pack (RequestInit userAgent authToken) = packRequest 1 [pack userAgent, pack authToken]
-  pack (RequestRun statement parameters) = packRequest 16 []
+  pack (RequestRun statement parameters) = packRequest 16 [pack statement, pack parameters]
   pack RequestAckFailure                 = packRequest 14 []
   pack RequestReset                      = packRequest 15 []
   pack RequestDiscardAll                 = packRequest 47 []
