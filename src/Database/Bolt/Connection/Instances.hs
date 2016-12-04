@@ -6,7 +6,7 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Data.Map.Strict                (Map (..), fromList)
+import           Data.Map.Strict                (Map (..), fromList, empty)
 import           Data.Text                      (Text)
 
 instance Structable Request where
@@ -50,6 +50,9 @@ isRecord _                  = False
 
 createInit :: BoltCfg -> Request
 createInit bcfg = RequestInit (userAgent bcfg) (tokenOf bcfg)
+
+createRun :: Text -> Request
+createRun stmt = RequestRun stmt empty
 
 tokenOf :: BoltCfg -> AuthToken
 tokenOf bcfg = AuthToken { scheme      = "basic"

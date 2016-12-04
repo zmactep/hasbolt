@@ -8,7 +8,7 @@ import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
 
 import           Control.Monad                       (unless, void, when)
-import           Control.Monad.IO.Class              (MonadIO (..))
+import           Control.Monad.IO.Class              (MonadIO (..), liftIO)
 import           Data.Binary                         (Binary (..))
 import           Data.ByteString                     (ByteString, append)
 import qualified Data.ByteString                     as B (concat, length, null,
@@ -22,6 +22,7 @@ import           Network.Socket                      (isConnected)
 connect :: MonadIO m => BoltCfg -> m Pipe
 connect bcfg = do (sock, _) <- connectSock (host bcfg) (show $ port bcfg)
                   let pipe = Pipe sock (maxChunkSize bcfg)
+                  handshake pipe bcfg
                   return pipe
 
 close :: MonadIO m => Pipe -> m ()
@@ -36,6 +37,9 @@ reset pipe = do flush pipe RequestReset
 
 ackFailure :: MonadIO m => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
+
+discardAll :: MonadIO m => Pipe -> m ()
+discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
 flush :: MonadIO m => Pipe -> Request -> m ()
 flush pipe request = do let chunkSize = fromIntegral (mcs pipe)

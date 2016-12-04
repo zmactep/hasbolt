@@ -102,11 +102,11 @@ instance BoltValue a => BoltValue (Map Text a) where
                                      return (key, value)
 
 instance BoltValue Structure where
-  pack (Structure sig fields) | size < 16   = (structConst + fromIntegral size) `cons` pFields
-                              | size < 2^8  = struct8Code `cons` fromIntegral size `cons` pFields
-                              | size < 2^16 = struct16Code `cons` encodeStrict size `append` pFields
+  pack (Structure sig fields) | size < 16   = (structConst + fromIntegral size) `cons` pData
+                              | size < 2^8  = struct8Code `cons` fromIntegral size `cons` pData
+                              | size < 2^16 = struct16Code `cons` encodeStrict size `append` pData
     where size = fromIntegral $ length fields :: Word16
-          pFields = B.concat $ map pack fields
+          pData = sig `cons` B.concat (map pack fields)
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
@@ -137,6 +137,10 @@ instance BoltValue Value where
                            | isDict   m = M <$> unpackT
                            | isStruct m = S <$> unpackT
                            | otherwise  = fail "Not a Value value"
+
+-- |Structure unpack function
+unpackS :: (Monad m, Structable a) => ByteString -> m a
+unpackS bs = unpack bs >>= fromStructure
 
 -- = Integer values unpackers
 

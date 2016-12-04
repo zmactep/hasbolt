@@ -19,9 +19,11 @@ library
   other-modules:       Database.Bolt.Connection.Type
                      , Database.Bolt.Connection.Instances
                      , Database.Bolt.Connection.Pipe
+                     , Database.Bolt.Connection
                      , Database.Bolt.Value.Type
                      , Database.Bolt.Value.Helpers
                      , Database.Bolt.Value.Instances
+                     , Database.Bolt.Value.Structure
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , text
@@ -32,6 +34,7 @@ library
                      , network
                      , network-simple
                      , data-default
+                     , hex
   default-language:    Haskell2010
 
 executable hasbolt-exe
