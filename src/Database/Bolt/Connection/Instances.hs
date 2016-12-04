@@ -23,10 +23,13 @@ instance Structable Response where
   toStructure = undefined
 
   fromStructure (Structure sig fields) | sig == sigSucc = ResponseSuccess <$> extractMap (head fields)
-                                       | sig == sigRecs = return $ ResponseRecord fields
+                                       | sig == sigRecs = return $ ResponseRecord (removeExtList fields)
                                        | sig == sigIgn  = ResponseIgnored <$> extractMap (head fields)
                                        | sig == sigFail = ResponseFailure <$> extractMap (head fields)
                                        | otherwise      = fail "Not a Response value"
+    where removeExtList :: [Value] -> [Value]
+          removeExtList [L x] = x
+          removeExtList _     = error "Record must contain only on value list"
 
 -- Response check functions
 

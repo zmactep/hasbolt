@@ -5,6 +5,7 @@ import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
+import           Database.Bolt.Record
 
 import           Control.Monad                 (void, when)
 import           Control.Monad.IO.Class        (MonadIO (..))
@@ -12,21 +13,25 @@ import           Control.Monad.Trans.Reader    (ReaderT (..), ask, runReaderT)
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (empty)
 
+-- |Monad Transformer to do all BOLT actions in
 type BoltActionT = ReaderT Pipe
 
 run :: MonadIO m => Pipe -> BoltActionT m a -> m a
 run = flip runReaderT
 
-query :: MonadIO m => Text -> BoltActionT m [Response]
-query cypher = do pipe <- ask
-                  let request = RequestRun cypher empty
-                  flush pipe request
-                  status <- fetch pipe
-                  if isSuccess status then do flush pipe RequestPullAll
-                                              (status:) <$> pullRest pipe
-                                      else do ackFailure pipe
-                                              return [status]
-  where pullRest :: MonadIO m => Pipe -> m [Response]
+query :: MonadIO m => Text -> BoltActionT m [Record]
+query cypher = toRecords <$> pullRequests
+  where pullRequests :: MonadIO m => BoltActionT m [Response]
+        pullRequests = do pipe <- ask
+                          let request = RequestRun cypher empty
+                          flush pipe request
+                          status <- fetch pipe
+                          if isSuccess status then do flush pipe RequestPullAll
+                                                      (status:) <$> pullRest pipe
+                                              else do ackFailure pipe
+                                                      return [status]
+
+        pullRest :: MonadIO m => Pipe -> m [Response]
         pullRest pipe = do resp <- fetch pipe
                            if isSuccess resp then return [resp]
                                              else (resp:) <$> pullRest pipe

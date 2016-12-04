@@ -1,15 +1,15 @@
 module Database.Bolt
     ( BoltActionT (..)
-    , connect, close, run
-    , query, query_
+    , connect, close, reset
+    , run, query, query_
     , Pipe
     , BoltCfg (..), Default (..)
-    , Value (..), BoltValue (..)
+    , Value (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
-    , Structable (..)
     ) where
 
 import           Database.Bolt.Connection
+import           Database.Bolt.Record
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Instances

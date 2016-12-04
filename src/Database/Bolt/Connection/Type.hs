@@ -43,10 +43,10 @@ data AuthToken = AuthToken { scheme      :: Text
                            , credentials :: Text
                            }
 
-data Response = ResponseSuccess (Map Text Value)
-              | ResponseRecord  [Value]
-              | ResponseIgnored (Map Text Value)
-              | ResponseFailure (Map Text Value)
+data Response = ResponseSuccess { succMap   :: Map Text Value }
+              | ResponseRecord  { recsList  :: [Value] }
+              | ResponseIgnored { ignoreMap :: Map Text Value }
+              | ResponseFailure { failMap   :: Map Text Value }
   deriving (Eq, Show)
 
 data Request = RequestInit { agent :: Text

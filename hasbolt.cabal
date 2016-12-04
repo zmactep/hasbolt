@@ -16,14 +16,15 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Database.Bolt
-  other-modules:       Database.Bolt.Connection.Type
-                     , Database.Bolt.Connection.Instances
-                     , Database.Bolt.Connection.Pipe
-                     , Database.Bolt.Connection
-                     , Database.Bolt.Value.Type
+  other-modules:       Database.Bolt.Value.Type
                      , Database.Bolt.Value.Helpers
                      , Database.Bolt.Value.Instances
                      , Database.Bolt.Value.Structure
+                     , Database.Bolt.Connection.Type
+                     , Database.Bolt.Connection.Instances
+                     , Database.Bolt.Connection.Pipe
+                     , Database.Bolt.Connection
+                     , Database.Bolt.Record
   build-depends:       base >= 4.7 && < 5
                      , bytestring
                      , text
