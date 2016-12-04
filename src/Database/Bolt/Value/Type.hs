@@ -1,4 +1,4 @@
-module Database.Bolt2.Value.Type where
+module Database.Bolt.Value.Type where
 
 import           Control.Monad.Trans.State (StateT (..), evalStateT)
 import           Data.ByteString           (ByteString)
@@ -14,6 +14,11 @@ data Structure = Structure { signature :: Word8
                            , fields    :: [Value]
                            }
   deriving (Show, Eq)
+
+-- |Generalizes all datatypes that can be serialized (deserialized) to (from) 'Structure's.
+class Structable a where
+  toStructure :: a -> Structure
+  fromStructure :: Monad m => Structure -> m a
 
 -- |The 'BoltValue' class describes values, that can be packed and unpacked for BOLT protocol.
 class BoltValue a where

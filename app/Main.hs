@@ -1,4 +1,5 @@
  {-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Database.Bolt

@@ -8,10 +8,10 @@ import           Data.Map                 (Map (..))
 import qualified Data.Map                 as M (empty, fromList)
 import           Data.Text                (Text)
 import qualified Data.Text                as T (pack)
-import           Database.Bolt.PackStream
-import           Database.Bolt.UnpackStream
 import           Test.Hspec
 import           Test.QuickCheck
+
+import Database.Bolt (BoltValue (..))
 
 main :: IO ()
 main = hspec $ do
@@ -20,50 +20,50 @@ main = hspec $ do
 
 unpackStreamTests :: Spec
 unpackStreamTests =
-  describe "UnpackStram" $ do
+  describe "Unpack" $ do
     it "unpacks integers correct" $ do
-      u1 <- prepareData "01" >>= runUnpackT :: IO Int
+      u1 <- prepareData "01" >>= unpack :: IO Int
       u1 `shouldBe` 1
-      u42 <- prepareData "2A" >>= runUnpackT :: IO Int
+      u42 <- prepareData "2A" >>= unpack :: IO Int
       u42 `shouldBe` 42
-      u1234 <- prepareData "C904D2" >>= runUnpackT :: IO Int
+      u1234 <- prepareData "C904D2" >>= unpack :: IO Int
       u1234 `shouldBe` 1234
     it "unpacks doubles correct" $ do
-      u6d <- prepareData "C1401921FB54442D18" >>= runUnpackT :: IO Double
+      u6d <- prepareData "C1401921FB54442D18" >>= unpack :: IO Double
       u6d `shouldBe` 6.283185307179586
-      um1d <- prepareData "C1BFF199999999999A" >>= runUnpackT :: IO Double
+      um1d <- prepareData "C1BFF199999999999A" >>= unpack :: IO Double
       um1d `shouldBe` (-1.1)
     it "unpacks booleans correct" $ do
-      uF <- prepareData "C2" >>= runUnpackT :: IO Bool
+      uF <- prepareData "C2" >>= unpack :: IO Bool
       uF `shouldBe` False
-      uT <- prepareData "C3" >>= runUnpackT :: IO Bool
+      uT <- prepareData "C3" >>= unpack :: IO Bool
       uT `shouldBe` True
     it "unpacks strings correct" $ do
-      usE <- prepareData "80" >>= runUnpackT :: IO Text
+      usE <- prepareData "80" >>= unpack :: IO Text
       usE `shouldBe` T.pack ""
-      usA <- prepareData "8141" >>= runUnpackT :: IO Text
+      usA <- prepareData "8141" >>= unpack :: IO Text
       usA `shouldBe` T.pack "A"
-      usU <- prepareData "D0124772C3B6C39F656E6D61C39F7374C3A46265" >>= runUnpackT :: IO Text
+      usU <- prepareData "D0124772C3B6C39F656E6D61C39F7374C3A46265" >>= unpack :: IO Text
       usU `shouldBe` T.pack "Größenmaßstäbe"
     it "unpacks lists correct" $ do
-      ulE <- prepareData "90" >>= runUnpackT :: IO [Int]
+      ulE <- prepareData "90" >>= unpack :: IO [Int]
       ulE `shouldBe` []
-      ulI <- prepareData "93010203" >>= runUnpackT :: IO [Int]
+      ulI <- prepareData "93010203" >>= unpack :: IO [Int]
       ulI `shouldBe` [1,2,3]
-      ulL <- prepareData "D4280102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728" >>= runUnpackT :: IO [Int]
+      ulL <- prepareData "D4280102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728" >>= unpack :: IO [Int]
       ulL `shouldBe` [1..40]
     it "unpacks dicts correct" $ do
-      udE <- prepareData "A0" >>= runUnpackT :: IO (Map Text ())
+      udE <- prepareData "A0" >>= unpack :: IO (Map Text ())
       udE `shouldBe` M.fromList []
-      udS <- prepareData "A1836F6E658465696E73" >>= runUnpackT :: IO (Map Text Text)
+      udS <- prepareData "A1836F6E658465696E73" >>= unpack :: IO (Map Text Text)
       udS `shouldBe` M.fromList [(T.pack "one", T.pack "eins")]
     it "unpacks () correct" $ do
-      uN <- prepareData "C0" >>= runUnpackT :: IO ()
+      uN <- prepareData "C0" >>= unpack :: IO ()
       uN `shouldBe` ()
 
 packStreamTests :: Spec
 packStreamTests =
-  describe "PackStream" $ do
+  describe "Pack" $ do
     it "packs integers correct" $ do
       hex (pack (1::Int)) `shouldBe` "01"
       hex (pack (42::Int)) `shouldBe` "2A"

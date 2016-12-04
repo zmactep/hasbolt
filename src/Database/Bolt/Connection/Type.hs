@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Database.Bolt2.Connection.Type where
+module Database.Bolt.Connection.Type where
 
-import           Database.Bolt2.Value.Type
+import           Database.Bolt.Value.Type
 
 import           Data.Default              (Default (..))
 import           Data.Map.Strict           (Map (..))

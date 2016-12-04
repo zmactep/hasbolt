@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Database.Bolt2.Value.Instances where
+module Database.Bolt.Value.Instances where
 
-import           Database.Bolt2.Value.Helpers
-import           Database.Bolt2.Value.Type
+import           Database.Bolt.Value.Helpers
+import           Database.Bolt.Value.Type
 
 import           Control.Monad                (forM, replicateM)
 import           Control.Monad.Trans.State    (gets, modify)

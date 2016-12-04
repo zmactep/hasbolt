@@ -1,4 +1,4 @@
-module Database.Bolt2.Value.Helpers where
+module Database.Bolt.Value.Helpers where
 
 import           Control.Applicative (liftA2, liftA3)
 import           Data.Bits           ((.&.))
