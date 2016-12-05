@@ -53,15 +53,15 @@ instance RecordValue Node where
 
 instance RecordValue Relationship where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Node value"
+  exact _     = fail "Not a Relationship value"
 
 instance RecordValue URelationship where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Node value"
+  exact _     = fail "Not a URelationship value"
 
 instance RecordValue Path where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Node value"
+  exact _     = fail "Not a Path value"
 
 at :: Monad m => Record -> Text -> m Value
 at record key | member key record = return (record ! key)

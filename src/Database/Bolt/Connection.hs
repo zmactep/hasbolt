@@ -16,9 +16,11 @@ import           Data.Map.Strict               (empty)
 -- |Monad Transformer to do all BOLT actions in
 type BoltActionT = ReaderT Pipe
 
+-- |Runs BOLT action on selected pipe
 run :: MonadIO m => Pipe -> BoltActionT m a -> m a
 run = flip runReaderT
 
+-- |Runs Cypher query and returns list of obtained 'Record's
 query :: MonadIO m => Text -> BoltActionT m [Record]
 query cypher = toRecords <$> pullRequests
   where pullRequests :: MonadIO m => BoltActionT m [Response]
@@ -36,6 +38,7 @@ query cypher = toRecords <$> pullRequests
                            if isSuccess resp then return [resp]
                                              else (resp:) <$> pullRest pipe
 
+-- |Runs Cypher query and ignores response
 query_ :: MonadIO m => Text -> BoltActionT m ()
 query_ cypher = do pipe <- ask
                    flush pipe (createRun cypher)

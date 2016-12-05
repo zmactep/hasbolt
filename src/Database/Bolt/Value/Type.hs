@@ -6,7 +6,7 @@ import           Data.Map.Strict           (Map (..))
 import           Data.Text                 (Text)
 import           Data.Word                 (Word8)
 
--- \The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
+-- |The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
 type UnpackT = StateT ByteString
 
 -- |The 'Structure' datatype describes Neo4j structure for BOLT protocol

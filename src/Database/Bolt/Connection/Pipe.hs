@@ -19,15 +19,18 @@ import           Network.Simple.TCP                  (closeSock, connectSock,
                                                       recv, send)
 import           Network.Socket                      (isConnected)
 
+-- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => BoltCfg -> m Pipe
 connect bcfg = do (sock, _) <- connectSock (host bcfg) (show $ port bcfg)
                   let pipe = Pipe sock (maxChunkSize bcfg)
                   handshake pipe bcfg
                   return pipe
 
+-- |Closes 'Pipe'
 close :: MonadIO m => Pipe -> m ()
 close = closeSock . connectionSocket
 
+-- |Resets current sessions
 reset :: MonadIO m => Pipe -> m ()
 reset pipe = do flush pipe RequestReset
                 response <- fetch pipe
