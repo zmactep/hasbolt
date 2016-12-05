@@ -3,22 +3,35 @@ HasBOLT
 
 Haskell driver for Neo4j 3+ (BOLT protocol)
 
+Documentation
+-------------
+
+To build Haddock documentation run:
+```
+$ stack haddock
+```
+
 Usage example
 -------------
 
 To use all the magic just import:
 ```
->> import Database.Bolt
+λ> import Database.Bolt
 ```
 
 To create new connection use (it is highly recommended to use with [resource-pool](https://hackage.haskell.org/package/resource-pool)):
 ```
->> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
+λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
 ```
 
 To make query (`query` takes `Data.Text`, so I use **OverloadedStrings** here):
 ```
->> records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
+λ> records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
+```
+
+You can also use parameters by `queryP`. You have to use `T` constructor here for text parameter, as Haskell is strong-typed language (see more about values in `Data.Value.Type`):
+```
+λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" (fromList [("name", T "Tom")])
 ```
 
 To obtain data from record you can use `at` and set of `exact` functions (the last one works for all possible Neo4j data, including primitive types, nodes, relationships and paths). So, you can do something like this:
@@ -26,12 +39,12 @@ To obtain data from record you can use `at` and set of `exact` functions (the la
 toNode :: Monad m => Record -> m Node
 toNode record = record `at` "n" >>= exact
 
->> let x = head records
->> toNode x >>= print
+λ> let x = head records
+λ> toNode x >>= print
 Node {nodeIdentity = 24, labels = ["Person"], nodeProps = fromList [("born",I 1962),("name",T "Tom Cruise")]}
 ```
 
 To close connection just use:
 ```
->> close pipe
+λ> close pipe
 ```

@@ -1,7 +1,7 @@
 module Database.Bolt
     ( BoltActionT (..)
     , connect, close, reset
-    , run, query, query_
+    , run, queryP, query, query_
     , Pipe
     , BoltCfg (..), Default (..)
     , Value (..), Record, RecordValue (..), at
