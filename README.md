@@ -14,6 +14,9 @@ $ stack haddock
 Usage example
 -------------
 
+**NB!** For a real-world example please see: [hasbolt-sample-app](https://github.com/zmactep/hasbolt-sample-app).
+
+
 To use all the magic just import:
 ```
 λ> import Database.Bolt
