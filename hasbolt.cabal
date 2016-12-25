@@ -1,7 +1,22 @@
 name:                hasbolt
 version:             0.1.0.3
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
-description:         Please see README.md
+description:
+  Haskell driver for Neo4j 3+ (BOLT protocol).
+  .
+  The package covers:
+  .
+    -Data serialization and deserialization
+  .
+    -Nodes, relationships and paths support
+  .
+    -Cypher queries and responses
+  .
+    -Authentification
+  .
+  The code was tested with neo4j versions 3.0 and 3.1
+
+
 homepage:            https://github.com/zmactep/hasbolt#readme
 license:             BSD3
 license-file:        LICENSE
