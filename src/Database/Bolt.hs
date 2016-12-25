@@ -4,7 +4,7 @@ module Database.Bolt
     , run, queryP, query, query_
     , Pipe
     , BoltCfg (..), Default (..)
-    , Value (..), Record, RecordValue (..), at
+    , BoltValue (..), Value (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

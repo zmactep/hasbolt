@@ -1,9 +1,9 @@
 HasBOLT
 =======
 
-![travis](https://img.shields.io/travis/zmactep/hasbolt.svg)
-![hackage](https://img.shields.io/hackage/v/hasbolt.svg)
-![hackage-deps](https://img.shields.io/hackage-deps/v/hasbolt.svg)
+[![Travis](https://img.shields.io/travis/zmactep/hasbolt.svg)](https://travis-ci.org/zmactep/hasbolt)
+[![hackage](https://img.shields.io/hackage/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
+[![hackage-deps](https://img.shields.io/hackage-deps/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
 
 Haskell driver for Neo4j 3+ (BOLT protocol)
 

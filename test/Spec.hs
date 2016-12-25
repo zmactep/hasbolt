@@ -11,7 +11,7 @@ import qualified Data.Text                as T (pack)
 import           Test.Hspec
 import           Test.QuickCheck
 
-import Database.Bolt (BoltValue (..))
+import Database.Bolt
 
 main :: IO ()
 main = hspec $ do
