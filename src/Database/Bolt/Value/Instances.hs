@@ -139,7 +139,7 @@ instance BoltValue Value where
                            | otherwise  = fail "Not a Value value"
 
 -- |Structure unpack function
-unpackS :: (Monad m, Structable a) => ByteString -> m a
+unpackS :: (Monad m, FromStructure a) => ByteString -> m a
 unpackS bs = unpack bs >>= fromStructure
 
 -- = Integer values unpackers

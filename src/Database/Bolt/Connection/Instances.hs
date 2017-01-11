@@ -9,7 +9,7 @@ import           Database.Bolt.Value.Type
 import           Data.Map.Strict                (Map (..), fromList, empty)
 import           Data.Text                      (Text)
 
-instance Structable Request where
+instance ToStructure Request where
   toStructure (RequestInit agent token) = Structure sigInit [T agent, M $ tokenMap token]
   toStructure (RequestRun stmt params)  = Structure sigRun [T stmt, M params]
   toStructure RequestReset              = Structure sigReset []
@@ -17,11 +17,7 @@ instance Structable Request where
   toStructure RequestPullAll            = Structure sigPAll []
   toStructure RequestDiscardAll         = Structure sigDAll []
 
-  fromStructure = undefined
-
-instance Structable Response where
-  toStructure = undefined
-
+instance FromStructure Response where
   fromStructure (Structure sig fields) | sig == sigSucc = ResponseSuccess <$> extractMap (head fields)
                                        | sig == sigRecs = return $ ResponseRecord (removeExtList fields)
                                        | sig == sigIgn  = ResponseIgnored <$> extractMap (head fields)
