@@ -3,9 +3,8 @@
 
 module Database.Bolt.Record where
 
-import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
-import           Database.Bolt.Value.Structure
+import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
 import           Data.Map.Strict                    (Map)

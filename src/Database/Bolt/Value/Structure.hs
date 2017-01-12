@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Bolt.Value.Structure where
 
 import Database.Bolt.Value.Type

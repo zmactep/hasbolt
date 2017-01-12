@@ -17,7 +17,6 @@ import           Data.Maybe                          (fromMaybe)
 import           Data.Word                           (Word16, Word32)
 import           Network.Simple.TCP                  (closeSock, connectSock,
                                                       recv, send)
-import           Network.Socket                      (isConnected)
 
 -- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => BoltCfg -> m Pipe

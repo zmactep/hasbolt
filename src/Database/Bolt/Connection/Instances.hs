@@ -1,4 +1,6 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Database.Bolt.Connection.Instances where
 
@@ -6,26 +8,27 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Data.Map.Strict                (Map (..), fromList, empty)
+import           Data.Map.Strict                (Map, fromList, empty)
 import           Data.Text                      (Text)
 
 instance ToStructure Request where
-  toStructure (RequestInit agent token) = Structure sigInit [T agent, M $ tokenMap token]
-  toStructure (RequestRun stmt params)  = Structure sigRun [T stmt, M params]
+  toStructure (RequestInit{..}) = Structure sigInit [T agent, M $ tokenMap token]
+  toStructure (RequestRun{..})  = Structure sigRun [T statement, M parameters]
   toStructure RequestReset              = Structure sigReset []
   toStructure RequestAckFailure         = Structure sigAFail []
   toStructure RequestPullAll            = Structure sigPAll []
   toStructure RequestDiscardAll         = Structure sigDAll []
 
 instance FromStructure Response where
-  fromStructure (Structure sig fields) | sig == sigSucc = ResponseSuccess <$> extractMap (head fields)
-                                       | sig == sigRecs = return $ ResponseRecord (removeExtList fields)
-                                       | sig == sigIgn  = ResponseIgnored <$> extractMap (head fields)
-                                       | sig == sigFail = ResponseFailure <$> extractMap (head fields)
-                                       | otherwise      = fail "Not a Response value"
+  fromStructure (Structure{..})
+    | signature == sigSucc = ResponseSuccess <$> extractMap (head fields)
+    | signature == sigRecs = return $ ResponseRecord (removeExtList fields)
+    | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
+    | signature == sigFail = ResponseFailure <$> extractMap (head fields)
+    | otherwise      = fail "Not a Response value"
     where removeExtList :: [Value] -> [Value]
           removeExtList [L x] = x
-          removeExtList _     = error "Record must contain only on value list"
+          removeExtList _     = error "Record must contain only a singleton list"
 
 -- Response check functions
 
@@ -48,16 +51,15 @@ isRecord _                  = False
 -- Helper functions
 
 createInit :: BoltCfg -> Request
-createInit bcfg = RequestInit (userAgent bcfg) (tokenOf bcfg)
+createInit BoltCfg{..} = RequestInit userAgent
+                                     AuthToken { scheme      = "basic"
+                                               , principal   = user
+                                               , credentials = password
+                                               }
 
 createRun :: Text -> Request
 createRun stmt = RequestRun stmt empty
 
-tokenOf :: BoltCfg -> AuthToken
-tokenOf bcfg = AuthToken { scheme      = "basic"
-                         , principal   = user bcfg
-                         , credentials = password bcfg
-                         }
 
 tokenMap :: AuthToken -> Map Text Value
 tokenMap at = fromList [ ("scheme",      T $ scheme at)

@@ -20,7 +20,7 @@ description:
 homepage:            https://github.com/zmactep/hasbolt#readme
 license:             BSD3
 license-file:        LICENSE
-author:              Pavel Yakovlev
+author:              Pavel Yakovlev, Martin Heuschober
 maintainer:          pavel@yakovlev.me
 copyright:           Copyright: (c) 2016 Pavel Yakovlev
 category:            Database
@@ -52,6 +52,7 @@ library
                      , data-default
                      , hex
   default-language:    Haskell2010
+  ghc-options:       -Wall
 
 test-suite hasbolt-test
   type:                exitcode-stdio-1.0

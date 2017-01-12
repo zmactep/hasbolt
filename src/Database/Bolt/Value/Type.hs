@@ -2,7 +2,7 @@ module Database.Bolt.Value.Type where
 
 import           Control.Monad.Trans.State (StateT (..), evalStateT)
 import           Data.ByteString           (ByteString)
-import           Data.Map.Strict           (Map (..))
+import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import           Data.Word                 (Word8)
 

@@ -5,7 +5,7 @@ module Database.Bolt.Connection.Type where
 import           Database.Bolt.Value.Type
 
 import           Data.Default              (Default (..))
-import           Data.Map.Strict           (Map (..))
+import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
 import           Data.Word                 (Word16, Word32)
 import           Network.Simple.TCP        (Socket)
