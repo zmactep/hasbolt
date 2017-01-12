@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
 
 module Database.Bolt.Value.Instances where
@@ -9,16 +10,16 @@ import           Control.Monad                (forM, replicateM)
 import           Control.Monad.Trans.State    (gets, modify)
 import           Data.Binary                  (Binary (..), decode, encode)
 import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
-import           Data.ByteString              (ByteString, append, cons, drop,
-                                               singleton, take)
-import qualified Data.ByteString              as B (concat, length)
+import           Data.ByteString              (ByteString, append, cons,
+                                               singleton)
+import qualified Data.ByteString              as B
 import           Data.ByteString.Lazy         (fromStrict, toStrict)
 import           Data.Int
-import           Data.Map.Strict              (Map (..), assocs, size, fromList)
+import           Data.Map.Strict              (Map)
+import qualified Data.Map.Strict              as M
 import           Data.Text                    (Text)
 import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
 import           Data.Word
-import           Prelude                      hiding (drop, take)
 
 instance BoltValue () where
   pack () = singleton nullCode
@@ -41,7 +42,7 @@ instance BoltValue Int where
            | isIntX  8 int = cons  int8Code $ encodeStrict (fromIntegral int :: Word8)
            | isIntX 16 int = cons int16Code $ encodeStrict (fromIntegral int :: Word16)
            | isIntX 32 int = cons int32Code $ encodeStrict (fromIntegral int :: Word32)
-           | isIntX 64 int = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
+           | otherwise     = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | isTinyWord m   = return . toInt $ (fromIntegral m :: Int8)
@@ -68,8 +69,8 @@ instance BoltValue Text where
                            | m == text16Code = toInt <$> unpackW16 >>= unpackTextBySize
                            | m == text32Code = toInt <$> unpackW32 >>= unpackTextBySize
                            | otherwise       = fail "Not a Text value"
-          unpackTextBySize size = do str <- gets (take size)
-                                     modify (drop size)
+          unpackTextBySize size = do str <- gets (B.take size)
+                                     modify (B.drop size)
                                      return $ decodeUtf8 str
 
 instance BoltValue a => BoltValue [a] where
@@ -85,8 +86,8 @@ instance BoltValue a => BoltValue [a] where
           unpackListBySize size = forM [1..size] $ const unpackT
 
 instance BoltValue a => BoltValue (Map Text a) where
-  pack dict = mkPackedCollection (size dict) pbs (dictConst, dict8Code, dict16Code, dict32Code)
-    where pbs = B.concat $ map mkPairPack $ assocs dict
+  pack dict = mkPackedCollection (M.size dict) pbs (dictConst, dict8Code, dict16Code, dict32Code)
+    where pbs = B.concat $ map mkPairPack $ M.assocs dict
           mkPairPack (key, val) = pack key `append` pack val
 
   unpackT = unpackW8 >>= unpackByMarker
@@ -95,18 +96,18 @@ instance BoltValue a => BoltValue (Map Text a) where
                            | m == dict16Code = toInt <$> unpackW16 >>= unpackDictBySize
                            | m == dict32Code = toInt <$> unpackW32 >>= unpackDictBySize
                            | otherwise       = error "Not a Dict value"
-          unpackDictBySize = (fromList <$>) . unpackPairsBySize
+          unpackDictBySize = (M.fromList <$>) . unpackPairsBySize
           unpackPairsBySize size = forM [1..size] $ const $ do
                                      key <- unpackT
                                      value <- unpackT
                                      return (key, value)
 
 instance BoltValue Structure where
-  pack (Structure sig fields) | size < 16   = (structConst + fromIntegral size) `cons` pData
-                              | size < 2^8  = struct8Code `cons` fromIntegral size `cons` pData
-                              | size < 2^16 = struct16Code `cons` encodeStrict size `append` pData
-    where size = fromIntegral $ length fields :: Word16
-          pData = sig `cons` B.concat (map pack fields)
+  pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
+                           | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
+                           | otherwise     = struct16Code `cons` encodeStrict size `append` pData
+    where size = fromIntegral $ length lst :: Word16
+          pData = sig `cons` B.concat (map pack lst)
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
@@ -114,8 +115,8 @@ instance BoltValue Structure where
                            | m == struct16Code = toInt <$> unpackW16 >>= unpackStructureBySize
                            | otherwise         = fail "Not a Structure value"
           unpackStructureBySize size = do sig <- unpackW8
-                                          fields <- replicateM size unpackT
-                                          return $ Structure sig fields
+                                          lst <- replicateM size unpackT
+                                          return $ Structure sig lst
 
 instance BoltValue Value where
   pack (N n) = pack n
@@ -139,7 +140,7 @@ instance BoltValue Value where
                            | otherwise  = fail "Not a Value value"
 
 -- |Structure unpack function
-unpackS :: (Monad m, Structable a) => ByteString -> m a
+unpackS :: (Monad m, FromStructure a) => ByteString -> m a
 unpackS bs = unpack bs >>= fromStructure
 
 -- = Integer values unpackers
@@ -174,10 +175,10 @@ unpackI64 = unpackNum 8
 -- = Other helpers
 
 -- |Unpacks n bytes as a numeric type
-observeNum :: (Monad m, Binary a, Num a) => Int -> UnpackT m a
+observeNum :: (Monad m, Binary a) => Int -> UnpackT m a
 observeNum = (decodeStrict <$>) . topBS
 
-unpackNum :: (Monad m, Binary a, Num a) => Int -> UnpackT m a
+unpackNum :: (Monad m, Binary a) => Int -> UnpackT m a
 unpackNum = (decodeStrict <$>) . popBS
 
 decodeStrict :: Binary a => ByteString -> a
@@ -188,19 +189,26 @@ encodeStrict = toStrict . encode
 
 -- |Obtain first n bytes of 'ByteString'
 topBS :: Monad m => Int -> UnpackT m ByteString
-topBS size = gets (take size)
+topBS size = gets (B.take size)
 
 -- |Obtain first n bytes of 'ByteString' and move offset by n
 popBS :: Monad m => Int -> UnpackT m ByteString
 popBS size = do top <- topBS size
-                modify (drop size)
+                modify (B.drop size)
                 return top
 
 -- |Pack collection using it's size and set of BOLT constants
 mkPackedCollection :: Int -> ByteString -> (Word8, Word8, Word8, Word8) -> ByteString
-mkPackedCollection size bst (wt, w8, w16, w32) = helper size
-  where helper size | size < 2^4  = cons (wt + fromIntegral size) bst
-                    | size < 2^8  = cons w8 $ cons (fromIntegral size) bst
-                    | size < 2^16 = cons w16 $ encodeStrict (fromIntegral size :: Word16) `append` bst
-                    | size < 2^32 = cons w32 $ encodeStrict (fromIntegral size :: Word32) `append` bst
-                    | otherwise  = error "Cannot pack so large collection"
+mkPackedCollection size bst (wt, w8, w16, w32)
+  | size < size4  = cons (wt + fromIntegral size) bst
+  | size < size8  = cons w8 $ cons (fromIntegral size) bst
+  | size < size16 = cons w16 $ encodeStrict (fromIntegral size :: Word16) `append` bst
+  | size < size32 = cons w32 $ encodeStrict (fromIntegral size :: Word32) `append` bst
+  | otherwise  = error "Cannot pack so large collection"
+
+size4,size8, size16,size32 :: Integral a => a
+size4   = 2^(4  :: Int)
+size8   = 2^(8  :: Int)
+size16  = 2^(16 :: Int)
+size32  = 2^(32 :: Int)
+

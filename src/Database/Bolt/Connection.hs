@@ -3,21 +3,20 @@ module Database.Bolt.Connection where
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
-import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
 import           Database.Bolt.Record
 
-import           Control.Monad                 (void, when)
+import           Control.Monad                 (when)
 import           Control.Monad.IO.Class        (MonadIO (..))
 import           Control.Monad.Trans.Reader    (ReaderT (..), ask, runReaderT)
 import           Data.Text                     (Text)
-import           Data.Map.Strict               (Map (..), empty)
+import           Data.Map.Strict               (Map, empty)
 
 -- |Monad Transformer to do all BOLT actions in
 type BoltActionT = ReaderT Pipe
 
 -- |Runs BOLT action on selected pipe
-run :: MonadIO m => Pipe -> BoltActionT m a -> m a
+run :: Pipe -> BoltActionT m a -> m a
 run = flip runReaderT
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's

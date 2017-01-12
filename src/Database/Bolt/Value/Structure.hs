@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module Database.Bolt.Value.Structure where
 
 import Database.Bolt.Value.Type
@@ -5,9 +6,7 @@ import Database.Bolt.Value.Helpers
 
 import Data.Text (Text)
 
-instance Structable Node where
-  toStructure = undefined
-
+instance FromStructure Node where
   fromStructure (Structure sig lst) | sig == sigNode = mkNode lst
                                     | otherwise      = failNode
     where mkNode :: Monad m => [Value] -> m Node
@@ -17,9 +16,7 @@ instance Structable Node where
           failNode :: Monad m => m Node
           failNode = fail "Not a Node value"
 
-instance Structable Relationship where
-  toStructure = undefined
-
+instance FromStructure Relationship where
   fromStructure (Structure sig lst) | sig == sigRel = mkRel lst
                                     | otherwise     = failRel
     where mkRel :: Monad m => [Value] -> m Relationship
@@ -29,9 +26,7 @@ instance Structable Relationship where
           failRel :: Monad m => m Relationship
           failRel = fail "Not a Relationship value"
 
-instance Structable URelationship where
-  toStructure = undefined
-
+instance FromStructure URelationship where
   fromStructure (Structure sig lst) | sig == sigURel = mkURel lst
                                     | otherwise      = failURel
     where mkURel :: Monad m => [Value] -> m URelationship
@@ -41,9 +36,7 @@ instance Structable URelationship where
           failURel :: Monad m => m URelationship
           failURel = fail "Not a Unbounded Relationship value"
 
-instance Structable Path where
-  toStructure = undefined
-
+instance FromStructure Path where
   fromStructure (Structure sig lst) | sig == sigPath = mkPath lst
                                     | otherwise      = failPath
     where mkPath :: Monad m => [Value] -> m Path

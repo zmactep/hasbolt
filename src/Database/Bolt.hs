@@ -1,5 +1,5 @@
 module Database.Bolt
-    ( BoltActionT (..)
+    ( BoltActionT
     , connect, close, reset
     , run, queryP, query, query_
     , Pipe
@@ -12,8 +12,8 @@ import           Database.Bolt.Connection
 import           Database.Bolt.Record
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
-import           Database.Bolt.Value.Instances
-import           Database.Bolt.Value.Structure
+import           Database.Bolt.Value.Instances ()
+import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
 import           Data.Default                  (Default (..))
