@@ -42,7 +42,8 @@ instance BoltValue Int where
            | isIntX  8 int = cons  int8Code $ encodeStrict (fromIntegral int :: Word8)
            | isIntX 16 int = cons int16Code $ encodeStrict (fromIntegral int :: Word16)
            | isIntX 32 int = cons int32Code $ encodeStrict (fromIntegral int :: Word32)
-           | otherwise     = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
+           | isIntX 62 int = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
+           | otherwise     = error "Cannot pack so large integer"
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | isTinyWord m   = return . toInt $ (fromIntegral m :: Int8)
@@ -105,7 +106,8 @@ instance BoltValue a => BoltValue (Map Text a) where
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
                            | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
-                           | otherwise     = struct16Code `cons` encodeStrict size `append` pData
+                           | size < size16 = struct16Code `cons` encodeStrict size `append` pData
+                           | otherwise     = error "Cannot pack so large structure"
     where size = fromIntegral $ length lst :: Word16
           pData = sig `cons` B.concat (map pack lst)
 
@@ -211,4 +213,3 @@ size4   = 2^(4  :: Int)
 size8   = 2^(8  :: Int)
 size16  = 2^(16 :: Int)
 size32  = 2^(32 :: Int)
-
