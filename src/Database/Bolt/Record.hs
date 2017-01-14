@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards   #-}
 
 module Database.Bolt.Record where
 
@@ -7,7 +8,7 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
-import           Data.Map.Strict                    (Map)
+import           Data.Map.Strict                    (Map, (!))
 import qualified Data.Map.Strict                    as M
 import           Data.Maybe                         (fromMaybe)
 import           Data.Text                          (Text)
@@ -44,7 +45,7 @@ instance RecordValue a => RecordValue [a] where
   exact _     = fail "Not a List value"
 
 instance RecordValue a => RecordValue (Maybe a) where
-  exact (N _) = return $ Nothing
+  exact (N _) = return Nothing
   exact x     = Just <$> exact x
 
 instance RecordValue (Map Text Value) where
@@ -72,9 +73,13 @@ at record key = case key `M.lookup` record of
                   Just result -> return result
                   Nothing     -> fail "No such key in record"
 
-toRecords :: [Response] -> [Record]
+toRecords :: Monad m => [Response] -> m [Record]
 toRecords (ResponseSuccess response:rest) =
   let keys :: [Text]
       keys = fromMaybe [] $ exact =<< ("fields" `M.lookup` response)
-  in map (M.fromList . zip keys . recsList) $ init rest
-toRecords  _ = []
+  in return $ map (M.fromList . zip keys . recsList) $ init rest
+toRecords [ResponseFailure{..}] =
+  let (T code) = failMap ! "code"
+      (T msg)  = failMap ! "message"
+  in fail $ "code: " ++ show code ++ ", message: " ++ show msg
+toRecords _ = fail "Unknown error"

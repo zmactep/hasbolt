@@ -21,7 +21,7 @@ run = flip runReaderT
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's
 queryP :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
-queryP cypher params = toRecords <$> pullRequests
+queryP cypher params = pullRequests >>= toRecords
   where pullRequests :: MonadIO m => BoltActionT m [Response]
         pullRequests = do pipe <- ask
                           let request = RequestRun cypher params
