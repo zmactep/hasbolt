@@ -8,19 +8,19 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Data.Map.Strict                (Map, fromList, empty)
+import           Data.Map.Strict                (Map, fromList, empty, (!))
 import           Data.Text                      (Text)
 
 instance ToStructure Request where
-  toStructure (RequestInit{..}) = Structure sigInit [T agent, M $ tokenMap token]
-  toStructure (RequestRun{..})  = Structure sigRun [T statement, M parameters]
+  toStructure RequestInit{..} = Structure sigInit [T agent, M $ tokenMap token]
+  toStructure RequestRun{..}  = Structure sigRun [T statement, M parameters]
   toStructure RequestReset              = Structure sigReset []
   toStructure RequestAckFailure         = Structure sigAFail []
   toStructure RequestPullAll            = Structure sigPAll []
   toStructure RequestDiscardAll         = Structure sigDAll []
 
 instance FromStructure Response where
-  fromStructure (Structure{..})
+  fromStructure Structure{..}
     | signature == sigSucc = ResponseSuccess <$> extractMap (head fields)
     | signature == sigRecs = return $ ResponseRecord (removeExtList fields)
     | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
@@ -70,3 +70,10 @@ tokenMap at = fromList [ ("scheme",      T $ scheme at)
 extractMap :: Monad m => Value -> m (Map Text Value)
 extractMap (M mp) = return mp
 extractMap _      = fail "Not a Dict value"
+
+mkFailure :: Monad m => Response -> m a
+mkFailure ResponseFailure{..} =
+  let (T code) = failMap ! "code"
+      (T msg)  = failMap ! "message"
+  in fail $ "code: " ++ show code ++ ", message: " ++ show msg
+mkFailure _ = fail "Unknown error"

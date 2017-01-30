@@ -41,12 +41,18 @@ queryP cypher params = pullRequests >>= toRecords
 query :: MonadIO m => Text -> BoltActionT m [Record]
 query cypher = queryP cypher empty
 
+-- |Runs Cypher query with parameters and ignores response
+queryP_ :: MonadIO m => Text -> Map Text Value -> BoltActionT m ()
+queryP_ cypher params = do pipe <- ask
+                           flush pipe $ RequestRun cypher params
+                           status <- fetch pipe
+                           when (isFailure status) $ do
+                             ackFailure pipe
+                             mkFailure status
+                           when (isSuccess status) $
+                             discardAll pipe
+
+
 -- |Runs Cypher query and ignores response
 query_ :: MonadIO m => Text -> BoltActionT m ()
-query_ cypher = do pipe <- ask
-                   flush pipe (createRun cypher)
-                   status <- fetch pipe
-                   when (isFailure status) $
-                     ackFailure pipe
-                   when (isSuccess status) $
-                     discardAll pipe
+query_ cypher = queryP_ cypher empty

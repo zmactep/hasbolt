@@ -1,14 +1,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards   #-}
 
 module Database.Bolt.Record where
 
 import           Database.Bolt.Connection.Type
+import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
-import           Data.Map.Strict                    (Map, (!))
+import           Data.Map.Strict                    (Map)
 import qualified Data.Map.Strict                    as M
 import           Data.Maybe                         (fromMaybe)
 import           Data.Text                          (Text)
@@ -78,8 +78,5 @@ toRecords (ResponseSuccess response:rest) =
   let keys :: [Text]
       keys = fromMaybe [] $ exact =<< ("fields" `M.lookup` response)
   in return $ map (M.fromList . zip keys . recsList) $ init rest
-toRecords [ResponseFailure{..}] =
-  let (T code) = failMap ! "code"
-      (T msg)  = failMap ! "message"
-  in fail $ "code: " ++ show code ++ ", message: " ++ show msg
-toRecords _ = fail "Unknown error"
+toRecords (x:_) = mkFailure x
+toRecords _     = fail "Empty response"
