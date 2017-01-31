@@ -52,7 +52,6 @@ queryP_ cypher params = do pipe <- ask
                            when (isSuccess status) $
                              discardAll pipe
 
-
 -- |Runs Cypher query and ignores response
 query_ :: MonadIO m => Text -> BoltActionT m ()
 query_ cypher = queryP_ cypher empty

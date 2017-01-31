@@ -14,7 +14,7 @@ instance FromStructure Node where
           mkNode _                         = failNode
 
           failNode :: Monad m => m Node
-          failNode = fail "Not a Node value"
+          failNode = fail $ show lst ++ " is not a Node value"
 
 instance FromStructure Relationship where
   fromStructure (Structure sig lst) | sig == sigRel = mkRel lst
@@ -24,7 +24,7 @@ instance FromStructure Relationship where
           mkRel _                                 = failRel
 
           failRel :: Monad m => m Relationship
-          failRel = fail "Not a Relationship value"
+          failRel = fail $ show lst ++ " is not a Relationship value"
 
 instance FromStructure URelationship where
   fromStructure (Structure sig lst) | sig == sigURel = mkURel lst
@@ -34,7 +34,7 @@ instance FromStructure URelationship where
           mkURel _                   = failURel
 
           failURel :: Monad m => m URelationship
-          failURel = fail "Not a Unbounded Relationship value"
+          failURel = fail $ show lst ++ " is not an Unbounded Relationship value"
 
 instance FromStructure Path where
   fromStructure (Structure sig lst) | sig == sigPath = mkPath lst
@@ -47,30 +47,30 @@ instance FromStructure Path where
           mkPath _                     = failPath
 
           failPath :: Monad m => m Path
-          failPath = fail "Not a Path value"
+          failPath = fail $ show lst ++ " is not a Path value"
 
 -- = Helper functions
 
 cnvT :: Monad m => [Value] -> m [Text]
 cnvT []       = return []
 cnvT (T x:xs) = (x:) <$> cnvT xs
-cnvT _        = fail "Non-text value in text list"
+cnvT (x:_)    = fail $ "Non-text value (" ++ show x ++ ") in text list"
 
 cnvN :: Monad m => [Value] -> m [Node]
 cnvN []       = return []
 cnvN (S x:xs) = do hd <- fromStructure x
                    rest <- cnvN xs
                    return (hd:rest)
-cnvN _        = fail "Non-node value in text list"
+cnvN (x:_)    = fail $ "Non-node value (" ++ show x ++ ") in node list"
 
 cnvR :: Monad m => [Value] -> m [URelationship]
 cnvR []       = return []
 cnvR (S x:xs) = do hd <- fromStructure x
                    rest <- cnvR xs
                    return (hd:rest)
-cnvR _        = fail "Non-(u)relationship value in text list"
+cnvR (x:_)    = fail $ "Non-(u)relationship value (" ++ show x ++ ") in (u)relationship list"
 
 cnvI :: Monad m => [Value] -> m [Int]
 cnvI []       = return []
 cnvI (I x:xs) = (x:) <$> cnvI xs
-cnvI _        = fail "Non-int value in text list"
+cnvI (x:_)    = fail $ "Non-int value (" ++ show x ++ ") in int list"

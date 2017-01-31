@@ -25,7 +25,7 @@ instance FromStructure Response where
     | signature == sigRecs = return $ ResponseRecord (removeExtList fields)
     | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
     | signature == sigFail = ResponseFailure <$> extractMap (head fields)
-    | otherwise      = fail "Not a Response value"
+    | otherwise            = fail "Not a Response value"
     where removeExtList :: [Value] -> [Value]
           removeExtList [L x] = x
           removeExtList _     = error "Record must contain only a singleton list"

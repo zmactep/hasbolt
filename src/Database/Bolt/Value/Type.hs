@@ -15,10 +15,11 @@ data Structure = Structure { signature :: Word8
                            }
   deriving (Show, Eq)
 
--- |Generalizes all datatypes that can be serialized (deserialized) to (from) 'Structure's.
+-- |Generalizes all datatypes that can be deserialized from 'Structure's.
 class FromStructure a where
   fromStructure :: Monad m => Structure -> m a
 
+-- |Generalizes all datatypes that can be serialized to 'Structure's.
 class ToStructure a where
   toStructure :: a -> Structure
 

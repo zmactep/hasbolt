@@ -22,27 +22,27 @@ class RecordValue a where
 
 instance RecordValue () where
   exact (N _) = return ()
-  exact _     = fail "Not a Null value"
+  exact x     = fail $ show x ++ " is not a Null value"
 
 instance RecordValue Bool where
   exact (B b) = return b
-  exact _     = fail "Not a Bool value"
+  exact x     = fail $ show x ++ " is not a Bool value"
 
 instance RecordValue Int where
   exact (I i) = return i
-  exact _     = fail "Not an Int value"
+  exact x     = fail $ show x ++ " is not an Int value"
 
 instance RecordValue Double where
   exact (F d) = return d
-  exact _     = fail "Not a Double value"
+  exact x     = fail $ show x ++ " is not a Double value"
 
 instance RecordValue Text where
   exact (T t) = return t
-  exact _     = fail "Not a Text value"
+  exact x     = fail $ show x ++ " is not a Text value"
 
 instance RecordValue a => RecordValue [a] where
   exact (L l) = traverse exact l
-  exact _     = fail "Not a List value"
+  exact x     = fail $ show x ++ " is not a List value"
 
 instance RecordValue a => RecordValue (Maybe a) where
   exact (N _) = return Nothing
@@ -50,23 +50,23 @@ instance RecordValue a => RecordValue (Maybe a) where
 
 instance RecordValue (Map Text Value) where
   exact (M m) = return m
-  exact _     = fail "Not a Map value"
+  exact x     = fail $ show x ++ " is not a Map value"
 
 instance RecordValue Node where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Node value"
+  exact x     = fail $ show x ++ " is not a Node value"
 
 instance RecordValue Relationship where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Relationship value"
+  exact x     = fail $ show x ++ " is not a Relationship value"
 
 instance RecordValue URelationship where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a URelationship value"
+  exact x     = fail $ show x ++ " is not a URelationship value"
 
 instance RecordValue Path where
   exact (S s) = fromStructure s
-  exact _     = fail "Not a Path value"
+  exact x     = fail $ show x ++ " is not a Path value"
 
 at :: Monad m => Record -> Text -> m Value
 at record key = case key `M.lookup` record of
