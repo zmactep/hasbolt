@@ -71,7 +71,7 @@ instance RecordValue Path where
 at :: Monad m => Record -> Text -> m Value
 at record key = case key `M.lookup` record of
                   Just result -> return result
-                  Nothing     -> fail "No such key in record"
+                  Nothing     -> fail $ "No such key (" ++ show key ++ ") in record"
 
 toRecords :: Monad m => [Response] -> m [Record]
 toRecords (ResponseSuccess response:rest) =
