@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.0.7
+version:             0.1.0.8
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -52,7 +52,7 @@ library
                      , data-default
                      , hex
   default-language:    Haskell2010
-  ghc-options:       -Wall
+  ghc-options:       -Wall -O2
 
 test-suite hasbolt-test
   type:                exitcode-stdio-1.0
