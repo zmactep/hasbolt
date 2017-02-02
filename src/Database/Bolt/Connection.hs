@@ -30,7 +30,7 @@ queryP cypher params = pullRequests >>= toRecords
                           if isSuccess status then do flush pipe RequestPullAll
                                                       (status:) <$> pullRest pipe
                                               else do ackFailure pipe
-                                                      return [status]
+                                                      mkFailure status
 
         pullRest :: MonadIO m => Pipe -> m [Response]
         pullRest pipe = do resp <- fetch pipe
