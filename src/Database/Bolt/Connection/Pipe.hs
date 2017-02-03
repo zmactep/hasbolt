@@ -11,12 +11,13 @@ import           Control.Monad                      (forM_, unless, void, when)
 import           Control.Monad.IO.Class             (MonadIO (..))
 import           Data.Binary                        (Binary (..))
 import           Data.ByteString                    (ByteString)
-import qualified Data.ByteString                    as B (concat, length,
-                                                          null, splitAt)
+import qualified Data.ByteString                    as B (concat, length, null,
+                                                          splitAt)
 import           Data.Maybe                         (fromMaybe)
 import           Data.Word                          (Word16, Word32)
 import           Network.Simple.TCP                 (Socket, closeSock,
-                                                     connectSock, recv, send)
+                                                     connectSock, recv, send,
+                                                     sendMany)
 
 -- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => BoltCfg -> m Pipe
@@ -44,16 +45,17 @@ discardAll :: MonadIO m => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
 flush :: MonadIO m => Pipe -> Request -> m ()
-flush pipe request = do let bs = pack $ toStructure request
-                        let chunkSize = chunkSizeFor (mcs pipe) bs
-                        let chunks = split chunkSize bs
-                        let terminal = encodeStrict (0 :: Word16)
-                        let sock = connectionSocket pipe
-                        forM_ chunks $ \chunk -> do
-                          let size = fromIntegral (B.length chunk) :: Word16
-                          send sock $ encodeStrict size
-                          send sock chunk
+flush pipe request = do forM_ chunks $ sendMany sock . mkChunk
                         send sock terminal
+  where bs        = pack $ toStructure request
+        chunkSize = chunkSizeFor (mcs pipe) bs
+        chunks    = split chunkSize bs
+        terminal  = encodeStrict (0 :: Word16)
+        sock      = connectionSocket pipe
+
+        mkChunk :: ByteString -> [ByteString]
+        mkChunk chunk = let size = fromIntegral (B.length chunk) :: Word16
+                        in  [encodeStrict size, chunk]
 
 fetch :: MonadIO m => Pipe -> m Response
 fetch pipe = do bs <- B.concat <$> chunks
