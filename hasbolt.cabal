@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.0.9
+version:             0.1.1.0
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -41,16 +41,16 @@ library
                      , Database.Bolt.Connection
                      , Database.Bolt.Record
   build-depends:       base >= 4.8 && < 5
-                     , bytestring
-                     , text
-                     , containers
-                     , binary
-                     , data-binary-ieee754
-                     , transformers
-                     , network
-                     , network-simple
-                     , data-default
-                     , hex
+                     , bytestring >= 0.10.8.1 && < 0.11
+                     , text >= 1.2.2.1 && < 1.3
+                     , containers >= 0.5.7.1 && < 0.6
+                     , binary >= 0.8.3.0 && < 0.9
+                     , data-binary-ieee754 >= 0.4.4 && < 0.5
+                     , transformers >= 0.5.2.0 && < 0.6
+                     , network >= 2.6.3.1 && < 2.7
+                     , network-simple >= 0.4.0.5 && < 0.5
+                     , data-default >= 0.7.1.1 && < 0.8
+                     , hex >= 0.1.2 && < 0.2
   default-language:    Haskell2010
   ghc-options:       -Wall -O2
 
@@ -58,10 +58,10 @@ test-suite hasbolt-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  build-depends:       base
+  build-depends:       base >= 4.8 && < 5
                      , hasbolt
-                     , hspec
-                     , QuickCheck
+                     , hspec >= 2.4.1 && < 2.5
+                     , QuickCheck >= 2.9.2 && < 2.10
                      , hex
                      , text
                      , containers
