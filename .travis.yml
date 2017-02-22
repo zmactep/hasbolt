@@ -8,20 +8,6 @@ cache:
 
 matrix:
   include:
-  - env: GHCVER=7.8.4 STACK_YAML=stack-7.8.yaml
-    addons:
-      apt:
-        sources:
-        - hvr-ghc
-        packages:
-        - ghc-7.8.4
-  - env: GHCVER=7.10.3 STACK_YAML=stack-7.10.yaml
-    addons:
-      apt:
-        sources:
-        - hvr-ghc
-        packages:
-        - ghc-7.10.3
   - env: GHCVER=8.0.2 STACK_YAML=stack.yaml
     addons:
       apt:
@@ -29,8 +15,6 @@ matrix:
         - hvr-ghc
         packages:
         - ghc-8.0.2
-  allow_failures:
-    - env: GHCVER=7.8.4 STACK_YAML=stack-7.8.yaml
 
 before_install:
 - mkdir -p ~/.local/bin
