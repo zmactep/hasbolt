@@ -17,3 +17,4 @@ import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
 import           Data.Default                  (Default (..))
+
