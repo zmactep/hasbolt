@@ -73,10 +73,10 @@ at record key = case key `M.lookup` record of
                   Just result -> return result
                   Nothing     -> fail $ "No such key (" ++ show key ++ ") in record"
 
-toRecords :: Monad m => [Response] -> m [Record]
-toRecords (ResponseSuccess response:rest) =
-  let keys :: [Text]
-      keys = fromMaybe [] $ exact =<< ("fields" `M.lookup` response)
-  in return $ map (M.fromList . zip keys . recsList) $ init rest
-toRecords (x:_) = mkFailure x
-toRecords _     = fail "Empty response"
+mkKeys :: Monad m => Response -> m [Text]
+mkKeys (ResponseSuccess response) = let mbKeys = exact =<< ("fields" `M.lookup` response)
+                                    in return $ fromMaybe [] mbKeys
+mkKeys x = mkFailure x
+
+mkRecord :: [Text] -> Response -> Record
+mkRecord keys = M.fromList . zip keys . recsList

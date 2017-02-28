@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Database.Bolt.Connection.Pipe where
 
 import           Database.Bolt.Connection.Instances
@@ -9,12 +7,10 @@ import           Database.Bolt.Value.Type
 
 import           Control.Monad                      (forM_, unless, void, when)
 import           Control.Monad.IO.Class             (MonadIO (..))
-import           Data.Binary                        (Binary (..))
 import           Data.ByteString                    (ByteString)
 import qualified Data.ByteString                    as B (concat, length, null,
                                                           splitAt)
-import           Data.Maybe                         (fromMaybe)
-import           Data.Word                          (Word16, Word32)
+import           Data.Word                          (Word16)
 import           Network.Simple.TCP                 (Socket, closeSock,
                                                      connectSock, recv, send,
                                                      sendMany)
@@ -59,13 +55,16 @@ flush pipe request = do forM_ chunks $ sendMany sock . mkChunk
 
 fetch :: MonadIO m => Pipe -> m Response
 fetch pipe = do bs <- B.concat <$> chunks
-                (unpack $! bs) >>= fromStructure
+                unpack bs >>= fromStructure
   where sock = connectionSocket pipe
 
         chunks :: MonadIO m => m [ByteString]
-        chunks = do size <- recvWord sock 2
+        chunks = do size <- decodeStrict <$> recvChunk sock 2
                     chunk <- recvChunk sock size
-                    if B.null chunk then return [] else (chunk:) <$> chunks
+                    if B.null chunk
+                      then return []
+                      else do rest <- chunks
+                              return (chunk:rest)
 
 -- Helper functions
 
@@ -73,7 +72,7 @@ handshake :: MonadIO m => Pipe -> BoltCfg -> m ()
 handshake pipe bcfg = do let sock = connectionSocket pipe
                          send sock (encodeStrict $ magic bcfg)
                          send sock (boltVersionProposal bcfg)
-                         serverVersion :: Word32 <- recvWord sock 4
+                         serverVersion <- decodeStrict <$> recvChunk sock 4
                          when (serverVersion /= version bcfg) $
                            fail "Unsupported server version"
                          flush pipe (createInit bcfg)
@@ -84,10 +83,6 @@ handshake pipe bcfg = do let sock = connectionSocket pipe
 
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
-
-recvWord :: (MonadIO m, Binary a, Integral a) => Socket -> Int -> m a
-recvWord sock size = do bs <- recv sock size
-                        return (fromMaybe 0 $ decodeStrict <$> bs)
 
 recvChunk :: MonadIO m => Socket -> Word16 -> m ByteString
 recvChunk sock size = B.concat <$> helper (fromIntegral size)
