@@ -22,7 +22,7 @@ instance ToStructure Request where
 instance FromStructure Response where
   fromStructure Structure{..}
     | signature == sigSucc = ResponseSuccess <$> extractMap (head fields)
-    | signature == sigRecs = return $ ResponseRecord (removeExtList fields)
+    | signature == sigRecs = pure $ ResponseRecord (removeExtList fields)
     | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
     | signature == sigFail = ResponseFailure <$> extractMap (head fields)
     | otherwise            = fail "Not a Response value"
@@ -68,7 +68,7 @@ tokenMap at = fromList [ ("scheme",      T $ scheme at)
                        ]
 
 extractMap :: Monad m => Value -> m (Map Text Value)
-extractMap (M mp) = return mp
+extractMap (M mp) = pure mp
 extractMap _      = fail "Not a Dict value"
 
 mkFailure :: Monad m => Response -> m a

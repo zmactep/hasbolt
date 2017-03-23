@@ -20,7 +20,7 @@ connect :: MonadIO m => BoltCfg -> m Pipe
 connect bcfg = do (sock, _) <- connectSock (host bcfg) (show $ port bcfg)
                   let pipe = Pipe sock (maxChunkSize bcfg)
                   handshake pipe bcfg
-                  return pipe
+                  pure pipe
 
 -- |Closes 'Pipe'
 close :: MonadIO m => Pipe -> m ()
@@ -32,7 +32,7 @@ reset pipe = do flush pipe RequestReset
                 response <- fetch pipe
                 when (isFailure response) $
                   fail "Reset failed"
-                return ()
+                pure ()
 
 ackFailure :: MonadIO m => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
@@ -62,9 +62,9 @@ fetch pipe = do bs <- B.concat <$> chunks
         chunks = do size <- decodeStrict <$> recvChunk sock 2
                     chunk <- recvChunk sock size
                     if B.null chunk
-                      then return []
+                      then pure []
                       else do rest <- chunks
-                              return (chunk:rest)
+                              pure (chunk:rest)
 
 -- Helper functions
 
@@ -79,7 +79,7 @@ handshake pipe bcfg = do let sock = connectionSocket pipe
                          response <- fetch pipe
                          unless (isSuccess response) $
                            fail "Authentification failed"
-                         return ()
+                         pure ()
 
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
@@ -87,7 +87,7 @@ boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
 recvChunk :: MonadIO m => Socket -> Word16 -> m ByteString
 recvChunk sock size = B.concat <$> helper (fromIntegral size)
   where helper :: MonadIO m => Int -> m [ByteString]
-        helper 0  = return []
+        helper 0  = pure []
         helper sz = do mbChunk <- recv sock sz
                        case mbChunk of
                          Just chunk -> (chunk:) <$> helper (sz - B.length chunk)

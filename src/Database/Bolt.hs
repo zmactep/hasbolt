@@ -1,7 +1,7 @@
 module Database.Bolt
     ( BoltActionT
     , connect, close, reset
-    , run, queryP, query, queryP_, query_
+    , run, queryP, query, queryP', query', queryP_, query_
     , Pipe
     , BoltCfg (..), Default (..)
     , BoltValue (..), Value (..), Record, RecordValue (..), at
@@ -9,9 +9,9 @@ module Database.Bolt
     ) where
 
 import           Database.Bolt.Connection
-import           Database.Bolt.Record
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
+import           Database.Bolt.Record
 import           Database.Bolt.Value.Instances ()
 import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type

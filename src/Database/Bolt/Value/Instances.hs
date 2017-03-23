@@ -25,7 +25,7 @@ instance BoltValue () where
   pack () = singleton nullCode
 
   unpackT = unpackW8 >>= unpackByMarker
-    where unpackByMarker m | m == nullCode = return ()
+    where unpackByMarker m | m == nullCode = pure ()
                            | otherwise     = fail "Not a Null value"
 
 instance BoltValue Bool where
@@ -33,8 +33,8 @@ instance BoltValue Bool where
   pack False = singleton falseCode
 
   unpackT = unpackW8 >>= unpackByMarker
-    where unpackByMarker m | m == trueCode  = return True
-                           | m == falseCode = return False
+    where unpackByMarker m | m == trueCode  = pure True
+                           | m == falseCode = pure False
                            | otherwise      = fail "Not a Bool value"
 
 instance BoltValue Int where
@@ -46,7 +46,7 @@ instance BoltValue Int where
            | otherwise     = error "Cannot pack so large integer"
 
   unpackT = unpackW8 >>= unpackByMarker
-    where unpackByMarker m | isTinyWord m   = return . toInt $ (fromIntegral m :: Int8)
+    where unpackByMarker m | isTinyWord m   = pure . toInt $ (fromIntegral m :: Int8)
                            | m == int8Code  = toInt <$> unpackI8
                            | m == int16Code = toInt <$> unpackI16
                            | m == int32Code = toInt <$> unpackI32
@@ -72,7 +72,7 @@ instance BoltValue Text where
                            | otherwise       = fail "Not a Text value"
           unpackTextBySize size = do str <- gets (B.take size)
                                      modify (B.drop size)
-                                     return $ decodeUtf8 str
+                                     pure $ decodeUtf8 str
 
 instance BoltValue a => BoltValue [a] where
   pack lst = mkPackedCollection (length lst) pbs (listConst, list8Code, list16Code, list32Code)
@@ -101,7 +101,7 @@ instance BoltValue a => BoltValue (Map Text a) where
           unpackPairsBySize size = forM [1..size] $ const $ do
                                      key <- unpackT
                                      value <- unpackT
-                                     return (key, value)
+                                     pure (key, value)
 
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
@@ -118,7 +118,7 @@ instance BoltValue Structure where
                            | otherwise         = fail "Not a Structure value"
           unpackStructureBySize size = do sig <- unpackW8
                                           lst <- replicateM size unpackT
-                                          return $ Structure sig lst
+                                          pure $ Structure sig lst
 
 instance BoltValue Value where
   pack (N n) = pack n
@@ -197,7 +197,7 @@ topBS size = gets (B.take size)
 popBS :: Monad m => Int -> UnpackT m ByteString
 popBS size = do top <- topBS size
                 modify (B.drop size)
-                return top
+                pure top
 
 -- |Pack collection using it's size and set of BOLT constants
 mkPackedCollection :: Int -> ByteString -> (Word8, Word8, Word8, Word8) -> ByteString

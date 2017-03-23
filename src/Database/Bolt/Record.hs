@@ -21,23 +21,23 @@ class RecordValue a where
   exact :: Monad m => Value -> m a
 
 instance RecordValue () where
-  exact (N _) = return ()
+  exact (N _) = pure ()
   exact x     = fail $ show x ++ " is not a Null value"
 
 instance RecordValue Bool where
-  exact (B b) = return b
+  exact (B b) = pure b
   exact x     = fail $ show x ++ " is not a Bool value"
 
 instance RecordValue Int where
-  exact (I i) = return i
+  exact (I i) = pure i
   exact x     = fail $ show x ++ " is not an Int value"
 
 instance RecordValue Double where
-  exact (F d) = return d
+  exact (F d) = pure d
   exact x     = fail $ show x ++ " is not a Double value"
 
 instance RecordValue Text where
-  exact (T t) = return t
+  exact (T t) = pure t
   exact x     = fail $ show x ++ " is not a Text value"
 
 instance RecordValue a => RecordValue [a] where
@@ -45,11 +45,11 @@ instance RecordValue a => RecordValue [a] where
   exact x     = fail $ show x ++ " is not a List value"
 
 instance RecordValue a => RecordValue (Maybe a) where
-  exact (N _) = return Nothing
+  exact (N _) = pure Nothing
   exact x     = Just <$> exact x
 
 instance RecordValue (Map Text Value) where
-  exact (M m) = return m
+  exact (M m) = pure m
   exact x     = fail $ show x ++ " is not a Map value"
 
 instance RecordValue Node where
@@ -70,12 +70,12 @@ instance RecordValue Path where
 
 at :: Monad m => Record -> Text -> m Value
 at record key = case key `M.lookup` record of
-                  Just result -> return result
+                  Just result -> pure result
                   Nothing     -> fail $ "No such key (" ++ show key ++ ") in record"
 
 mkKeys :: Monad m => Response -> m [Text]
 mkKeys (ResponseSuccess response) = let mbKeys = exact =<< ("fields" `M.lookup` response)
-                                    in return $ fromMaybe [] mbKeys
+                                    in pure $ fromMaybe [] mbKeys
 mkKeys x = mkFailure x
 
 mkRecord :: [Text] -> Response -> Record

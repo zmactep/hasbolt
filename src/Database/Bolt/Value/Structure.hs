@@ -20,7 +20,7 @@ instance FromStructure Relationship where
   fromStructure (Structure sig lst) | sig == sigRel = mkRel lst
                                     | otherwise     = failRel
     where mkRel :: Monad m => [Value] -> m Relationship
-          mkRel [I rid, I sni, I eni, T rt, M rp] = return $ Relationship rid sni eni rt rp
+          mkRel [I rid, I sni, I eni, T rt, M rp] = pure $ Relationship rid sni eni rt rp
           mkRel _                                 = failRel
 
           failRel :: Monad m => m Relationship
@@ -30,7 +30,7 @@ instance FromStructure URelationship where
   fromStructure (Structure sig lst) | sig == sigURel = mkURel lst
                                     | otherwise      = failURel
     where mkURel :: Monad m => [Value] -> m URelationship
-          mkURel [I rid, T rt, M rp] = return $ URelationship rid rt rp
+          mkURel [I rid, T rt, M rp] = pure $ URelationship rid rt rp
           mkURel _                   = failURel
 
           failURel :: Monad m => m URelationship
@@ -43,7 +43,7 @@ instance FromStructure Path where
           mkPath [L vnp, L vrp, L vip] = do np <- cnvN vnp
                                             rp <- cnvR vrp
                                             ip <- cnvI vip
-                                            return $ Path np rp ip
+                                            pure $ Path np rp ip
           mkPath _                     = failPath
 
           failPath :: Monad m => m Path
@@ -52,25 +52,25 @@ instance FromStructure Path where
 -- = Helper functions
 
 cnvT :: Monad m => [Value] -> m [Text]
-cnvT []       = return []
+cnvT []       = pure []
 cnvT (T x:xs) = (x:) <$> cnvT xs
 cnvT (x:_)    = fail $ "Non-text value (" ++ show x ++ ") in text list"
 
 cnvN :: Monad m => [Value] -> m [Node]
-cnvN []       = return []
+cnvN []       = pure []
 cnvN (S x:xs) = do hd <- fromStructure x
                    rest <- cnvN xs
-                   return (hd:rest)
+                   pure (hd:rest)
 cnvN (x:_)    = fail $ "Non-node value (" ++ show x ++ ") in node list"
 
 cnvR :: Monad m => [Value] -> m [URelationship]
-cnvR []       = return []
+cnvR []       = pure []
 cnvR (S x:xs) = do hd <- fromStructure x
                    rest <- cnvR xs
-                   return (hd:rest)
+                   pure (hd:rest)
 cnvR (x:_)    = fail $ "Non-(u)relationship value (" ++ show x ++ ") in (u)relationship list"
 
 cnvI :: Monad m => [Value] -> m [Int]
-cnvI []       = return []
+cnvI []       = pure []
 cnvI (I x:xs) = (x:) <$> cnvI xs
 cnvI (x:_)    = fail $ "Non-int value (" ++ show x ++ ") in int list"

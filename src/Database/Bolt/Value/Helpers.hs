@@ -34,7 +34,7 @@ isInt :: Word8 -> Bool
 isInt = do x <- liftA2 (||) (== int8Code) (== int16Code)
            y <- liftA2 (||) (== int32Code) (== int64Code)
            z <- isTinyWord
-           return $ x || y || z
+           pure $ x || y || z
 
 isDouble :: Word8 -> Bool
 isDouble = (== doubleCode)
@@ -42,17 +42,17 @@ isDouble = (== doubleCode)
 isDict :: Word8 -> Bool
 isDict = do x <- liftA2 (||) (== dict8Code) (== dict16Code)
             y <- liftA2 (||) (== dict32Code) isTinyDict
-            return $ x || y
+            pure $ x || y
 
 isText :: Word8 -> Bool
 isText = do x <- liftA2 (||) (== text8Code) (== text16Code)
             y <- liftA2 (||) (== text32Code) isTinyText
-            return $ x || y
+            pure $ x || y
 
 isList :: Word8 -> Bool
 isList = do x <- liftA2 (||) (== list8Code) (== list16Code)
             y <- liftA2 (||) (== list32Code) isTinyList
-            return $ x || y
+            pure $ x || y
 
 isStruct :: Word8 -> Bool
 isStruct = liftA3 (\x y z -> x || y || z) (== struct8Code) (== struct16Code) isTinyStruct
