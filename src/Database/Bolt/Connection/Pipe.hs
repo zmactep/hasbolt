@@ -5,15 +5,16 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
 
+import           Database.Bolt.Connection.Socket    (Socket, closeSock,
+                                                     connectSock, recv, send,
+                                                     sendMany)
+
 import           Control.Monad                      (forM_, unless, void, when)
 import           Control.Monad.IO.Class             (MonadIO (..))
 import           Data.ByteString                    (ByteString)
 import qualified Data.ByteString                    as B (concat, length, null,
                                                           splitAt)
 import           Data.Word                          (Word16)
-import           Network.Simple.TCP                 (Socket, closeSock,
-                                                     connectSock, recv, send,
-                                                     sendMany)
 
 -- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => BoltCfg -> m Pipe
