@@ -26,11 +26,11 @@ type BoltActionT = ReaderT Pipe
 run :: Pipe -> BoltActionT m a -> m a
 run = flip runReaderT
 
--- |Runs Cypher query with parameters and returns list of obtained 'Record's
+-- |Runs Cypher query with parameters and returns list of obtained 'Record's. Lazy version
 queryP :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
 queryP = querySL False
 
--- |Runs Cypher query and returns list of obtained 'Record's
+-- |Runs Cypher query and returns list of obtained 'Record's. Lazy version
 query :: MonadIO m => Text -> BoltActionT m [Record]
 query cypher = queryP cypher empty
 
