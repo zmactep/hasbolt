@@ -4,7 +4,7 @@ module Database.Bolt.Lazy
     , run, queryP, query, queryP_, query_
     , Pipe
     , BoltCfg (..)
-    , BoltValue (..), Value (..), Record, RecordValue (..), at
+    , BoltValue (..), Value (..), Structure (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

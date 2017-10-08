@@ -36,6 +36,7 @@ library
                      , Database.Bolt.Value.Helpers
                      , Database.Bolt.Value.Instances
                      , Database.Bolt.Value.Structure
+                     , Database.Bolt.Value.Dump
                      , Database.Bolt.Connection.Socket
                      , Database.Bolt.Connection.Type
                      , Database.Bolt.Connection.Instances
