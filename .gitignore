@@ -23,3 +23,4 @@ cabal.sandbox.config
 cabal.project.local
 .HTF/
 .boltkit
+.DS_Store
