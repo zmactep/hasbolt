@@ -4,28 +4,27 @@ import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
+import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
+                                                           send, sendMany)
 
-import           Database.Bolt.Connection.Socket    (Socket, closeSock,
-                                                     connectSock, recv, send,
-                                                     sendMany)
-
-import           Control.Monad                      (forM_, unless, void, when)
-import           Control.Monad.IO.Class             (MonadIO (..))
-import           Data.ByteString                    (ByteString)
-import qualified Data.ByteString                    as B (concat, length, null,
-                                                          splitAt)
-import           Data.Word                          (Word16)
+import           Control.Monad                       (forM_, unless, void, when)
+import           Control.Monad.IO.Class              (MonadIO (..))
+import           Data.ByteString                     (ByteString)
+import qualified Data.ByteString                     as B (concat, length, null,
+                                                           splitAt)
+import           Data.Word                           (Word16)
+import           Network.Connection                  (Connection)
 
 -- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => BoltCfg -> m Pipe
-connect bcfg = do (sock, _) <- connectSock (host bcfg) (show $ port bcfg)
-                  let pipe = Pipe sock (maxChunkSize bcfg)
+connect bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg)
+                  let pipe = Pipe conn (maxChunkSize bcfg)
                   handshake pipe bcfg
                   pure pipe
 
 -- |Closes 'Pipe'
 close :: MonadIO m => Pipe -> m ()
-close = closeSock . connectionSocket
+close = C.close . connection
 
 -- |Resets current sessions
 reset :: MonadIO m => Pipe -> m ()
@@ -42,13 +41,13 @@ discardAll :: MonadIO m => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
 flush :: MonadIO m => Pipe -> Request -> m ()
-flush pipe request = do forM_ chunks $ sendMany sock . mkChunk
-                        send sock terminal
+flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
+                        C.send conn terminal
   where bs        = pack $ toStructure request
         chunkSize = chunkSizeFor (mcs pipe) bs
         chunks    = split chunkSize bs
         terminal  = encodeStrict (0 :: Word16)
-        sock      = connectionSocket pipe
+        conn      = connection pipe
 
         mkChunk :: ByteString -> [ByteString]
         mkChunk chunk = let size = fromIntegral (B.length chunk) :: Word16
@@ -57,11 +56,11 @@ flush pipe request = do forM_ chunks $ sendMany sock . mkChunk
 fetch :: MonadIO m => Pipe -> m Response
 fetch pipe = do bs <- B.concat <$> chunks
                 unpack bs >>= fromStructure
-  where sock = connectionSocket pipe
+  where conn = connection pipe
 
         chunks :: MonadIO m => m [ByteString]
-        chunks = do size <- decodeStrict <$> recvChunk sock 2
-                    chunk <- recvChunk sock size
+        chunks = do size <- decodeStrict <$> recvChunk conn 2
+                    chunk <- recvChunk conn size
                     if B.null chunk
                       then pure []
                       else do rest <- chunks
@@ -70,10 +69,10 @@ fetch pipe = do bs <- B.concat <$> chunks
 -- Helper functions
 
 handshake :: MonadIO m => Pipe -> BoltCfg -> m ()
-handshake pipe bcfg = do let sock = connectionSocket pipe
-                         send sock (encodeStrict $ magic bcfg)
-                         send sock (boltVersionProposal bcfg)
-                         serverVersion <- decodeStrict <$> recvChunk sock 4
+handshake pipe bcfg = do let conn = connection pipe
+                         C.send conn (encodeStrict $ magic bcfg)
+                         C.send conn (boltVersionProposal bcfg)
+                         serverVersion <- decodeStrict <$> recvChunk conn 4
                          when (serverVersion /= version bcfg) $
                            fail "Unsupported server version"
                          flush pipe (createInit bcfg)
@@ -85,11 +84,11 @@ handshake pipe bcfg = do let sock = connectionSocket pipe
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
 
-recvChunk :: MonadIO m => Socket -> Word16 -> m ByteString
-recvChunk sock size = B.concat <$> helper (fromIntegral size)
+recvChunk :: MonadIO m => Connection -> Word16 -> m ByteString
+recvChunk conn size = B.concat <$> helper (fromIntegral size)
   where helper :: MonadIO m => Int -> m [ByteString]
         helper 0  = pure []
-        helper sz = do mbChunk <- recv sock sz
+        helper sz = do mbChunk <- C.recv conn sz
                        case mbChunk of
                          Just chunk -> (chunk:) <$> helper (sz - B.length chunk)
                          Nothing    -> fail "Cannot read chunk from sock"

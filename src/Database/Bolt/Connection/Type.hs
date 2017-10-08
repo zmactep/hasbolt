@@ -4,12 +4,11 @@ module Database.Bolt.Connection.Type where
 
 import           Database.Bolt.Value.Type
 
-import           Database.Bolt.Connection.Socket (Socket)
-
 import           Data.Default                    (Default (..))
 import           Data.Map.Strict                 (Map)
 import           Data.Text                       (Text)
 import           Data.Word                       (Word16, Word32)
+import           Network.Connection              (Connection)
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
@@ -21,6 +20,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
                        , port          :: Int     -- ^Neo4j server port
                        , user          :: Text    -- ^Neo4j user
                        , password      :: Text    -- ^Neo4j password
+                       , secure        :: Bool    -- ^Use TLS or not
                        }
 
 instance Default BoltCfg where
@@ -33,10 +33,11 @@ instance Default BoltCfg where
                 , port          = 7687
                 , user          = ""
                 , password      = ""
+                , secure        = False
                 }
 
-data Pipe = Pipe { connectionSocket :: Socket     -- ^Driver connection socket
-                 , mcs              :: Word16     -- ^Driver maximum chunk size of request
+data Pipe = Pipe { connection :: Connection -- ^Driver connection socket
+                 , mcs        :: Word16     -- ^Driver maximum chunk size of request
                  }
 
 data AuthToken = AuthToken { scheme      :: Text

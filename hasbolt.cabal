@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.2.1
+version:             0.1.3.0
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -22,7 +22,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Pavel Yakovlev, Martin Heuschober
 maintainer:          pavel@yakovlev.me
-copyright:           Copyright: (c) 2016 Pavel Yakovlev
+copyright:           (c) 2016 Pavel Yakovlev
 category:            Database
 build-type:          Simple
 -- extra-source-files:
@@ -36,8 +36,7 @@ library
                      , Database.Bolt.Value.Helpers
                      , Database.Bolt.Value.Instances
                      , Database.Bolt.Value.Structure
-                     , Database.Bolt.Value.Dump
-                     , Database.Bolt.Connection.Socket
+                     , Database.Bolt.Connection.Connection
                      , Database.Bolt.Connection.Type
                      , Database.Bolt.Connection.Instances
                      , Database.Bolt.Connection.Pipe
@@ -51,10 +50,11 @@ library
                      , data-binary-ieee754 >= 0.4.4 && < 0.5
                      , transformers >= 0.5.2.0 && < 0.6
                      , network >= 2.6.3.1 && < 2.7
+                     , connection >= 0.2.8 && < 0.3
                      , data-default >= 0.7.1.1 && < 0.8
                      , hex >= 0.1.2 && < 0.2
   default-language:    Haskell2010
-  ghc-options:       -Wall -O2
+  ghc-options:       -Wall
 
 test-suite hasbolt-test
   type:                exitcode-stdio-1.0
