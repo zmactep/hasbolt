@@ -1,5 +1,6 @@
 module Database.Bolt.Connection.Connection where
 
+import           Control.Applicative    (pure, (<$>))
 import           Control.Monad          (when, forM_)
 import           Control.Monad.IO.Class (MonadIO (..))
 import           Data.ByteString        (ByteString, null)
@@ -10,12 +11,12 @@ import           Network.Connection     (Connection, ConnectionParams (..), conn
 import           Prelude                hiding (null)
 
 connect :: MonadIO m => Bool -> String -> PortNumber -> m Connection
-connect secure host port = do ctx <- liftIO $ initConnectionContext
-                              conn <- liftIO $ connectTo ctx $ ConnectionParams { connectionHostname  = host
-                                                                                , connectionPort      = port
-                                                                                , connectionUseSecure = Nothing
-                                                                                , connectionUseSocks  = Nothing
-                                                                                }
+connect secure host port = do ctx <- liftIO initConnectionContext
+                              conn <- liftIO $ connectTo ctx ConnectionParams { connectionHostname  = host
+                                                                              , connectionPort      = port
+                                                                              , connectionUseSecure = Nothing
+                                                                              , connectionUseSocks  = Nothing
+                                                                              }
                               when secure $
                                 liftIO $ connectionSetSecure ctx conn def
                               pure conn
