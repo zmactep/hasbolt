@@ -14,7 +14,9 @@ description:
   .
     -Authentification
   .
-  The code was tested with neo4j versions 3.0 and 3.1
+    -TLS/SSL connection
+  .
+  The code was tested with neo4j versions 3.0 — 3.3 and GrapheneDB service
 
 
 homepage:            https://github.com/zmactep/hasbolt#readme
