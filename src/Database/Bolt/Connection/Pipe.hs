@@ -32,7 +32,6 @@ reset pipe = do flush pipe RequestReset
                 response <- fetch pipe
                 when (isFailure response) $
                   fail "Reset failed"
-                pure ()
 
 ackFailure :: MonadIO m => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
@@ -79,7 +78,6 @@ handshake pipe bcfg = do let conn = connection pipe
                          response <- fetch pipe
                          unless (isSuccess response) $
                            fail "Authentification failed"
-                         pure ()
 
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
