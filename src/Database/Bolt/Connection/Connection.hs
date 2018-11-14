@@ -1,6 +1,5 @@
 module Database.Bolt.Connection.Connection where
 
-import           Data.Hex               (hex)
 import           Control.Applicative    (pure, (<$>))
 import           Control.Monad          (when, forM_)
 import           Control.Monad.IO.Class (MonadIO (..))
