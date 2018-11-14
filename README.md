@@ -18,9 +18,6 @@ $ stack haddock
 Usage example
 -------------
 
-**NB!** For a real-world example please see: [hasbolt-sample-app](https://github.com/zmactep/hasbolt-sample-app).
-
-
 To use all the magic just import:
 ```
 λ> import Database.Bolt
@@ -30,6 +27,8 @@ To create new connection use (it is highly recommended to use with [resource-poo
 ```
 λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
 ```
+
+**NB!** For Neo4j 3.4+ also use `version = 2` to work with [new datatypes](#new-types).
 
 To make query (`query` takes `Data.Text`, so I use **OverloadedStrings** here):
 ```
@@ -55,3 +54,94 @@ To close connection just use:
 ```
 λ> close pipe
 ```
+
+New types
+---------
+
+Neo4j 3.4+ implements BOLT v2 protocol (that still doesn't have any specification). Code inspection of [neo4j sources](https://github.com/neo4j/neo4j) led me to these new data types in v2. All of them are just structures with different signatures and fields.
+* Point2D
+```
+signature = 'X'
+fields = { crs :: CoordinateReferenceSystem
+         , x   :: Double
+         , y   :: Double
+         }
+```
+* Point3D
+```
+signature = 'Y'
+fields = { crs :: CoordinateReferenceSystem
+         , x   :: Double
+         , y   :: Double
+         , z   :: Double
+         }
+```
+* Duration
+```
+signature = 'E'
+fields = { months  :: Integer
+         , days    :: Integer
+         , seconds :: Integer
+         , nanos   :: Integer
+         }
+```
+* Date
+```
+signature = 'D'
+fields = { epochDays :: Integer
+         }
+```
+* Time
+```
+signature = 'T'
+fields = { nanosOfDayLocal :: Integer
+         , offsetSeconds   :: Integer
+         }
+```
+* LocalTime
+```
+signature = 't'
+fields = { nanosOfDay :: Integer
+         }
+```
+* LocalDateTime
+```
+signature = 'd'
+fields = { epochSeconds :: Integer
+         , nano         :: Integer
+         }
+```
+* DateTimeWithZoneOffset
+```
+signature = 'F'
+fields = { epochSecondsLocal :: Integer
+         , nano              :: Integer
+         , offsetSeconds     :: Integer
+         }
+```
+* DateTimeWithZoneName
+```
+signature = 'f'
+fields = { epochSecondsLocal :: Integer
+         , nano              :: Integer
+         , zoneId            :: Integer
+         }
+```
+
+Codes of Coordinate Reference Systems:
+* Cartesian 2D — 7203
+* Cartesian 3D — 9157
+* WGS-84 2D — 4326
+* WGS-84 3D — 4979
+
+### Example
+
+```
+λ> pipe <- connect $ def { user = "neo4j", password = "neo4j", version = 2 }
+λ> records <- run pipe $ query "RETURN point(x: 1, y: 2, z: 3) as point"
+λ> (head records) `at` "point"
+S (Structure {signature = 89, fields = [I 9157,F 1.0,F 2.0,F 3.0]})
+λ> close pipe
+```
+
+Here `89` is an [ASCII code](https://en.wikipedia.org/wiki/ASCII#Character_set) for 'Y', `9157` shows default cartesian 3d coordinate reference system.

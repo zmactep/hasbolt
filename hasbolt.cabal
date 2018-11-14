@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.3.0
+version:             0.1.3.1
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -16,7 +16,7 @@ description:
   .
     -TLS/SSL connection
   .
-  The code was tested with neo4j versions 3.0 — 3.3 and GrapheneDB service
+  The code was tested with neo4j versions 3.0 — 3.4 and GrapheneDB service
 
 
 homepage:            https://github.com/zmactep/hasbolt#readme
@@ -24,7 +24,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Pavel Yakovlev, Martin Heuschober
 maintainer:          pavel@yakovlev.me
-copyright:           (c) 2016 Pavel Yakovlev
+copyright:           (c) 2018 Pavel Yakovlev
 category:            Database
 build-type:          Simple
 -- extra-source-files:

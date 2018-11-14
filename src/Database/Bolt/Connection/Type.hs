@@ -26,7 +26,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
                 , version       = 1
-                , userAgent     = "hasbolt/1.0"
+                , userAgent     = "hasbolt/1.3"
                 , maxChunkSize  = 65535
                 , socketTimeout = 5
                 , host          = "127.0.0.1"
@@ -44,7 +44,8 @@ data AuthToken = AuthToken { scheme      :: Text
                            , principal   :: Text
                            , credentials :: Text
                            }
-
+  deriving (Eq, Show)
+  
 data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseRecord  { recsList  :: [Value] }
               | ResponseIgnored { ignoreMap :: Map Text Value }
@@ -61,3 +62,4 @@ data Request = RequestInit { agent :: Text
              | RequestReset
              | RequestDiscardAll
              | RequestPullAll
+  deriving (Eq, Show)
