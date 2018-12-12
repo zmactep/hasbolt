@@ -40,10 +40,7 @@ instance FromStructure Path where
   fromStructure (Structure sig lst) | sig == sigPath = mkPath lst
                                     | otherwise      = failPath
     where mkPath :: Monad m => [Value] -> m Path
-          mkPath [L vnp, L vrp, L vip] = do np <- cnvN vnp
-                                            rp <- cnvR vrp
-                                            ip <- cnvI vip
-                                            pure $ Path np rp ip
+          mkPath [L vnp, L vrp, L vip] = Path <$> cnvN vnp <*> cnvR vrp <*> cnvI vip
           mkPath _                     = failPath
 
           failPath :: Monad m => m Path
@@ -58,16 +55,12 @@ cnvT (x:_)    = fail $ "Non-text value (" ++ show x ++ ") in text list"
 
 cnvN :: Monad m => [Value] -> m [Node]
 cnvN []       = pure []
-cnvN (S x:xs) = do hd <- fromStructure x
-                   rest <- cnvN xs
-                   pure (hd:rest)
+cnvN (S x:xs) = (:) <$> fromStructure x <*> cnvN xs
 cnvN (x:_)    = fail $ "Non-node value (" ++ show x ++ ") in node list"
 
 cnvR :: Monad m => [Value] -> m [URelationship]
 cnvR []       = pure []
-cnvR (S x:xs) = do hd <- fromStructure x
-                   rest <- cnvR xs
-                   pure (hd:rest)
+cnvR (S x:xs) = (:) <$> fromStructure x <*> cnvR xs
 cnvR (x:_)    = fail $ "Non-(u)relationship value (" ++ show x ++ ") in (u)relationship list"
 
 cnvI :: Monad m => [Value] -> m [Int]

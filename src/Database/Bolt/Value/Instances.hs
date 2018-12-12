@@ -6,6 +6,7 @@ module Database.Bolt.Value.Instances where
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
+import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
 import           Control.Monad.Trans.State    (gets, modify)
 import           Data.Binary                  (Binary (..), decode, encode)
@@ -116,9 +117,7 @@ instance BoltValue Structure where
                            | m == struct8Code  = toInt <$> unpackW8 >>= unpackStructureBySize
                            | m == struct16Code = toInt <$> unpackW16 >>= unpackStructureBySize
                            | otherwise         = fail "Not a Structure value"
-          unpackStructureBySize size = do sig <- unpackW8
-                                          lst <- replicateM size unpackT
-                                          pure $ Structure sig lst
+          unpackStructureBySize size = Structure <$> unpackW8 <*> replicateM size unpackT
 
 instance BoltValue Value where
   pack (N n) = pack n

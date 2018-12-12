@@ -40,12 +40,7 @@ discardAll :: MonadIO m => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
 flush :: MonadIO m => Pipe -> Request -> m ()
-flush pipe request = do -- USELESS LOGGING
-                        liftIO $ do
-                          putStr "[->]: "
-                          print request
-                        -- USELESS LOGGING
-                        forM_ chunks $ C.sendMany conn . mkChunk
+flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
                         C.send conn terminal
   where bs        = pack $ toStructure request
         chunkSize = chunkSizeFor (mcs pipe) bs
@@ -59,13 +54,7 @@ flush pipe request = do -- USELESS LOGGING
 
 fetch :: MonadIO m => Pipe -> m Response
 fetch pipe = do bs <- B.concat <$> chunks
-                result <- unpack bs >>= fromStructure
-                -- USELESS LOGGING
-                liftIO $ do 
-                  putStr "[<-]: "
-                  print result
-                -- USELESS LOGGING
-                pure result
+                unpack bs >>= fromStructure
   where conn = connection pipe
 
         chunks :: MonadIO m => m [ByteString]

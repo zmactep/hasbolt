@@ -1,6 +1,6 @@
 module Database.Bolt.Value.Helpers where
 
-import           Control.Applicative (liftA2, liftA3)
+import           Control.Applicative (liftA2, liftA3, pure)
 import           Data.Bits           ((.&.))
 import           Data.Word           (Word8)
 
