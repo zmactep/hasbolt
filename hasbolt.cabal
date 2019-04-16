@@ -63,8 +63,8 @@ test-suite hasbolt-test
   main-is:             Spec.hs
   build-depends:       base >= 4.8 && < 5
                      , hasbolt
-                     , hspec >= 2.4.1 && < 2.7
-                     , QuickCheck >= 2.9 && < 2.13
+                     , hspec >= 2.4.1 && < 2.8
+                     , QuickCheck >= 2.9 && < 2.14
                      , hex
                      , text
                      , containers
