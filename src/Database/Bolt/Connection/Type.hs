@@ -45,7 +45,7 @@ data AuthToken = AuthToken { scheme      :: Text
                            , credentials :: Text
                            }
   deriving (Eq, Show)
-  
+
 data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseRecord  { recsList  :: [Value] }
               | ResponseIgnored { ignoreMap :: Map Text Value }
@@ -63,3 +63,8 @@ data Request = RequestInit { agent :: Text
              | RequestDiscardAll
              | RequestPullAll
   deriving (Eq, Show)
+
+data Cypher = Cypher
+  { cypherQuery :: Text
+  , cypherParams :: Map Text Value
+  } deriving Show

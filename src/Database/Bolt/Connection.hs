@@ -4,6 +4,7 @@ module Database.Bolt.Connection
   , queryP, query
   , queryP', query'
   , queryP_, query_
+  , sendRequest
   ) where
 
 import           Database.Bolt.Connection.Pipe
@@ -45,11 +46,11 @@ query' cypher = queryP' cypher empty
 
 -- |Runs Cypher query with parameters and ignores response
 queryP_ :: MonadIO m => Text -> Map Text Value -> BoltActionT m ()
-queryP_ cypher params = do pipe <- ask
-                           liftIO $ do
-                             void $ sendRequest pipe cypher params
-                             discardAll pipe
-     
+queryP_ cq params = do pipe <- ask
+                       liftIO $ do
+                         void $ sendRequest pipe (Cypher cq params)
+                         discardAll pipe
+
 -- |Runs Cypher query and ignores response
 query_ :: MonadIO m => Text -> BoltActionT m ()
 query_ cypher = queryP_ cypher empty
@@ -57,15 +58,16 @@ query_ cypher = queryP_ cypher empty
 -- Helper functions
 
 querySL :: MonadIO m => Bool -> Text -> Map Text Value -> BoltActionT m [Record]
-querySL strict cypher params = do pipe <- ask
-                                  liftIO $ do
-                                    keys <- pullKeys pipe cypher params
-                                    pullRecords strict pipe keys
+querySL strict cq params = do pipe <- ask
+                              liftIO $ do
+                                keys <- pullKeys pipe $ Cypher cq params
+                                pullRecords strict pipe keys
 
-pullKeys :: Pipe -> Text -> Map Text Value -> IO [Text]
-pullKeys pipe cypher params = do status <- sendRequest pipe cypher params
-                                 flush pipe RequestPullAll
-                                 mkKeys status
+pullKeys :: Pipe -> Cypher -> IO [Text]
+pullKeys pipe cypher = do
+  status <- sendRequest pipe cypher
+  flush pipe RequestPullAll
+  mkKeys status
 
 pullRecords :: Bool -> Pipe -> [Text] -> IO [Record]
 pullRecords strict pipe keys = fetch pipe >>= cases
@@ -84,9 +86,9 @@ pullRecords strict pipe keys = fetch pipe >>= cases
         pure (record:rest)
 
 -- |Sends request to database and makes an action
-sendRequest :: Pipe -> Text -> Map Text Value -> IO Response
-sendRequest pipe cypher params =
-  do flush pipe $ RequestRun cypher params
+sendRequest :: Pipe -> Cypher -> IO Response
+sendRequest pipe c =
+  do flush pipe $ RequestRun (cypherQuery c) (cypherParams c)
      status <- fetch pipe
      if isSuccess status
        then pure status
