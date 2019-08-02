@@ -11,7 +11,7 @@ Documentation
 -------------
 
 To build Haddock documentation run:
-```
+```bash
 $ stack haddock
 ```
 
@@ -19,29 +19,29 @@ Usage example
 -------------
 
 To use all the magic just import:
-```
+```haskell
 λ> import Database.Bolt
 ```
 
 To create new connection use (it is highly recommended to use with [resource-pool](https://hackage.haskell.org/package/resource-pool)):
-```
+```haskell
 λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
 ```
 
 **NB!** For Neo4j 3.4+ also use `version = 2` to work with [new datatypes](#new-types).
 
 To make query (`query` takes `Data.Text`, so I use **OverloadedStrings** here):
-```
+```haskell
 λ> records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
 ```
 
 You can also use parameters by `queryP`. You have to use `T` constructor here for text parameter, as Haskell is strong-typed language (see more about values in `Data.Value.Type`):
-```
+```haskell
 λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" (fromList [("name", T "Tom")])
 ```
 
 To obtain data from record you can use `at` and set of `exact` functions (the last one works for all possible Neo4j data, including primitive types, nodes, relationships and paths). So, you can do something like this:
-```
+```haskell
 toNode :: Monad m => Record -> m Node
 toNode record = record `at` "n" >>= exact
 
@@ -51,7 +51,7 @@ Node {nodeIdentity = 24, labels = ["Person"], nodeProps = fromList [("born",I 19
 ```
 
 To close connection just use:
-```
+```haskell
 λ> close pipe
 ```
 
@@ -60,7 +60,7 @@ New types
 
 Neo4j 3.4+ implements BOLT v2 protocol (that still doesn't have any specification). Code inspection of [neo4j sources](https://github.com/neo4j/neo4j) led me to these new data types in v2. All of them are just structures with different signatures and fields.
 * Point2D
-```
+```haskell
 signature = 'X'
 fields = { crs :: CoordinateReferenceSystem
          , x   :: Double
@@ -68,7 +68,7 @@ fields = { crs :: CoordinateReferenceSystem
          }
 ```
 * Point3D
-```
+```haskell
 signature = 'Y'
 fields = { crs :: CoordinateReferenceSystem
          , x   :: Double
@@ -77,7 +77,7 @@ fields = { crs :: CoordinateReferenceSystem
          }
 ```
 * Duration
-```
+```haskell
 signature = 'E'
 fields = { months  :: Integer
          , days    :: Integer
@@ -86,33 +86,33 @@ fields = { months  :: Integer
          }
 ```
 * Date
-```
+```haskell
 signature = 'D'
 fields = { epochDays :: Integer
          }
 ```
 * Time
-```
+```haskell
 signature = 'T'
 fields = { nanosOfDayLocal :: Integer
          , offsetSeconds   :: Integer
          }
 ```
 * LocalTime
-```
+```haskell
 signature = 't'
 fields = { nanosOfDay :: Integer
          }
 ```
 * LocalDateTime
-```
+```haskell
 signature = 'd'
 fields = { epochSeconds :: Integer
          , nano         :: Integer
          }
 ```
 * DateTimeWithZoneOffset
-```
+```haskell
 signature = 'F'
 fields = { epochSecondsLocal :: Integer
          , nano              :: Integer
@@ -120,7 +120,7 @@ fields = { epochSecondsLocal :: Integer
          }
 ```
 * DateTimeWithZoneName
-```
+```haskell
 signature = 'f'
 fields = { epochSecondsLocal :: Integer
          , nano              :: Integer
@@ -136,7 +136,7 @@ Codes of Coordinate Reference Systems:
 
 ### Example
 
-```
+```haskell
 λ> pipe <- connect $ def { user = "neo4j", password = "neo4j", version = 2 }
 λ> records <- run pipe $ query "RETURN point(x: 1, y: 2, z: 3) as point"
 λ> (head records) `at` "point"
