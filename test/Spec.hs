@@ -11,12 +11,45 @@ import qualified Data.Text                as T (pack)
 import           Test.Hspec
 import           Test.QuickCheck
 
-import Database.Bolt
+import           Data.Default           (Default (..))
+import           Database.Bolt
 
 main :: IO ()
 main = hspec $ do
          packStreamTests
          unpackStreamTests
+         --transactionTests  -- Requires Neo4j running
+
+cyphers :: [Cypher]
+cyphers =
+  [ Cypher "CREATE (p:Person { name: 'Simon', age: 61 } ) RETURN p"  M.empty
+  , Cypher "CREATE (p:Person { name: 'Philip', age: 63 } ) RETURN p" M.empty
+  , Cypher "CREATE (p:Person { name: 'Erik', age: 56 } ) RETURN p"   M.empty
+  ]
+
+failedCyphers :: [Cypher]
+failedCyphers =
+  [ Cypher "CREATE (g:Guitar { brand: 'Gibson' } ) RETURN g"  M.empty
+  , Cypher "CREATE (g:Guitar { brand: 'Fender' } ) RETURN g"  M.empty
+  , Cypher "CREATE (g:Guitar { brand: 'Ibanez' } ) RETURN g"  M.empty
+  , Cypher "This is going to make it fail, BOOM!"  M.empty
+  , Cypher "CREATE (g:Guitar { brand: 'Schecter' } ) RETURN g"  M.empty
+  ]
+
+mkConnection :: IO Pipe
+mkConnection = connect $ def { user = "neo4j", password = "test" }
+
+transactionTests :: Spec
+transactionTests =
+  describe "Transaction" $ do
+    it "commits" $ do
+      pipe <- mkConnection
+      run pipe $ transact_ cyphers :: IO ()
+      close pipe
+    it "rollsback due to malformed query" $ do
+      pipe <- mkConnection
+      run pipe $ transact_ failedCyphers :: IO ()
+      close pipe
 
 unpackStreamTests :: Spec
 unpackStreamTests =
