@@ -2,7 +2,7 @@ module Database.Bolt
     ( BoltActionT
     , connect, close, reset
     , run, queryP, query, queryP_, query_
-    , transact, transact_
+    , TxError, transact, transact_
     , Pipe
     , BoltCfg (..)
     , BoltValue (..), Value (..), Structure (..), Record, RecordValue (..), at
@@ -13,7 +13,7 @@ import           Database.Bolt.Connection hiding (query, queryP)
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Record
-import           Database.Bolt.Transaction     (transact, transact_)
+import           Database.Bolt.Transaction     (TxError, transact, transact_)
 import           Database.Bolt.Value.Instances ()
 import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type

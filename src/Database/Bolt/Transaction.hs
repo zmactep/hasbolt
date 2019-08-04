@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Bolt.Transaction
-  ( transact
+  ( TxError
+  , transact
   , transact_
   )
 where
@@ -37,7 +38,7 @@ transact cyphers = do
   pipe <- ask
   liftIO $ txBegin pipe
   liftIO $ catch (join <$> traverse (sendCypher pipe) cyphers <* void (txCommit pipe))
-                 (\TxError -> [] <$ txRollback pipe)
+                 (\TxError -> txRollback pipe >> throwM TxError)
  where
   handler :: IOException -> IO [Record]
   handler e = print e >> throwM TxError
