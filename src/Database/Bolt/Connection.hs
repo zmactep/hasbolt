@@ -4,7 +4,7 @@ module Database.Bolt.Connection
   , queryP, query
   , queryP', query'
   , queryP_, query_
-  , sendRequest
+  , pullKeys, pullRecords, sendRequest
   ) where
 
 import           Database.Bolt.Connection.Pipe

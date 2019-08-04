@@ -4,12 +4,11 @@ import           Control.Applicative      ((<$>))
 import           Data.ByteString          (ByteString)
 import           Data.ByteString.Lazy     (fromStrict, toStrict)
 import           Data.Hex
-import           Data.Map                 (Map (..))
+import           Data.Map                 (Map)
 import qualified Data.Map                 as M (empty, fromList)
 import           Data.Text                (Text)
 import qualified Data.Text                as T (pack)
 import           Test.Hspec
-import           Test.QuickCheck
 
 import           Data.Default           (Default (..))
 import           Database.Bolt
@@ -44,11 +43,11 @@ transactionTests =
   describe "Transaction" $ do
     it "commits" $ do
       pipe <- mkConnection
-      run pipe $ transact_ cyphers :: IO ()
+      run pipe $ transact cyphers :: IO [Record]
       close pipe
-    it "rollsback due to malformed query" $ do
+    it "rollsback due to malformed cypher query" $ do
       pipe <- mkConnection
-      run pipe $ transact_ failedCyphers :: IO ()
+      run pipe $ transact failedCyphers :: IO [Record]
       close pipe
 
 unpackStreamTests :: Spec

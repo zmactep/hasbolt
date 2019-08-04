@@ -76,4 +76,4 @@ mkFailure ResponseFailure{..} =
   let (T code) = failMap ! "code"
       (T msg)  = failMap ! "message"
   in fail $ "code: " ++ show code ++ ", message: " ++ show msg
-mkFailure _ = fail "Unknown error"
+mkFailure r = fail $ "Unknown error. Response: " ++ show r

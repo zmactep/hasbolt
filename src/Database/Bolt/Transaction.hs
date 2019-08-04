@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Database.Bolt.Transaction
   ( transact
@@ -9,11 +9,13 @@ where
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Connection       ( BoltActionT
-                                                , sendRequest
+                                                , pullKeys
+                                                , pullRecords
                                                 )
 import           Database.Bolt.Record
 
 import           Control.Exception              ( IOException )
+import           Control.Monad                  ( join )
 import           Control.Monad.Catch            ( Exception
                                                 , catch
                                                 , throwM
@@ -22,7 +24,6 @@ import           Control.Monad.IO.Class         ( MonadIO(..)
                                                 , liftIO
                                                 )
 import           Control.Monad.Trans.Reader     ( ask )
-import           Data.Foldable                  ( traverse_ )
 import           Data.Functor                   ( void )
 import           Data.Map.Strict                ( empty )
 import           Data.Text                      ( Text )
@@ -30,29 +31,24 @@ import           Data.Text                      ( Text )
 data TxError = TxError deriving Show
 instance Exception TxError
 
--- |Runs a list of cypher queries with parameters as an atomic operation and returns the last output
+-- |Runs a list of cypher queries with parameters as an atomic operation and returns all the records
 transact :: MonadIO m => [Cypher] -> BoltActionT m [Record]
-transact = undefined -- TODO: Implement
+transact cyphers = do
+  pipe <- ask
+  liftIO $ txBegin pipe
+  liftIO $ catch (join <$> traverse (sendCypher pipe) cyphers <* void (txCommit pipe))
+                 (\TxError -> [] <$ txRollback pipe)
+ where
+  handler :: IOException -> IO [Record]
+  handler e = print e >> throwM TxError
+  sendCypher :: Pipe -> Cypher -> IO [Record]
+  sendCypher pipe cypher = do
+    putStrLn $ "Sending Cypher " ++ show (cypherQuery cypher)
+    catch (pullKeys pipe cypher >>= pullRecords True pipe) handler
 
 -- |Runs a list of cypher queries with parameters as an atomic operation and discards all outputs
 transact_ :: MonadIO m => [Cypher] -> BoltActionT m ()
-transact_ cyphers = do
-  pipe <- ask
-  liftIO $ txBegin pipe
-  liftIO $ catch (traverse_ (sendCypher pipe) cyphers >> void (txCommit pipe))
-                 (\TxError -> txRollback pipe)
- where
-  handler :: IOException -> IO ()
-  handler e = print e >> throwM TxError
-  sendCypher :: Pipe -> Cypher -> IO ()
-  sendCypher pipe cypher = do
-    putStrLn $ "Sending Cypher " ++ show (cypherQuery cypher)
-    catch
-      (sendRequest pipe cypher >>= \case
-        ResponseFailure _ -> putStrLn "Failure " >> throwM TxError
-        _                 -> discardAll pipe
-      )
-      handler
+transact_ = void . transact
 
 txCommand :: Text -> Pipe -> IO Response
 txCommand cmd pipe = do
