@@ -56,13 +56,11 @@ transaction discard cyphers = do
   txQuery :: Text -> Map Text Value -> BoltActionT IO [Record]
   txQuery q p = if discard then [] <$ queryP_ q p else queryP' q p
   sendCypher :: Pipe -> Cypher -> IO [Record]
-  sendCypher pipe c = do
-    putStrLn $ "Sending Cypher " ++ show (cypherQuery c)
+  sendCypher pipe c =
     catch (run pipe $ txQuery (cypherQuery c) (cypherParams c)) handler
 
 txCommand :: Text -> Pipe -> IO Response
 txCommand cmd pipe = do
-  putStrLn $ "Sending command " ++ show cmd
   flush pipe $ RequestRun cmd empty
   void $ fetch pipe
   flush pipe RequestPullAll
