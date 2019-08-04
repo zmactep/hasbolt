@@ -6,7 +6,7 @@ module Database.Bolt
     , Pipe
     , BoltCfg (..)
     , BoltValue (..), Value (..), Structure (..), Record, RecordValue (..), at
-    , Node (..), Relationship (..), URelationship (..), Path (..), Cypher(..)
+    , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 
 import           Database.Bolt.Connection hiding (query, queryP)

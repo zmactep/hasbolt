@@ -93,3 +93,8 @@ sendRequest pipe c =
        then pure status
        else do ackFailure pipe
                mkFailure status
+
+data Cypher = Cypher
+  { cypherQuery :: Text
+  , cypherParams :: Map Text Value
+  } deriving Show

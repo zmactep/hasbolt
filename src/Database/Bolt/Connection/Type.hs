@@ -63,8 +63,3 @@ data Request = RequestInit { agent :: Text
              | RequestDiscardAll
              | RequestPullAll
   deriving (Eq, Show)
-
-data Cypher = Cypher
-  { cypherQuery :: Text
-  , cypherParams :: Map Text Value
-  } deriving Show

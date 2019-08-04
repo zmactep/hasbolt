@@ -27,12 +27,14 @@ transactionTests :: Spec
 transactionTests = describe "Transaction" $ do
   it "commits" $ do
     pipe    <- mkConnection
-    persons <- toEntityList "p" <$> run pipe (transact cyphers) :: IO [Person]
+    let queries = (\q -> queryP q M.empty) <$> cyphers
+    persons <- toEntityList "p" <$> run pipe (transact queries) :: IO [Person]
     close pipe
     persons `shouldBe` input
   it "rollsback due to malformed cypher query" $ do
     pipe    <- mkConnection
-    let stmt = toEntityList "g" <$> run pipe (transact failedCyphers) :: IO [Guitar]
+    let queries = (\q -> queryP q M.empty) <$> failedCyphers
+    let stmt = toEntityList "g" <$> run pipe (transact queries) :: IO [Guitar]
     stmt `shouldThrow` anyTxError
     close pipe
 
@@ -41,24 +43,17 @@ transactionTests = describe "Transaction" $ do
 input :: [Person]
 input = [Person "Simon" 61, Person "Philip" 63, Person "Erik" 56]
 
-cyphers :: [Cypher]
+cyphers :: [Text]
 cyphers = toCypher <$> input where
-  toCypher p = Cypher
-    (  "CREATE (p:Person { name: '"
-    <> name p
-    <> "', age: "
-    <> pack (show $ age p)
-    <> " } ) RETURN p"
-    )
-    M.empty
+  toCypher p = "CREATE (p:Person { name: '" <> name p <> "', age: " <> pack (show $ age p) <> " } ) RETURN p"
 
-failedCyphers :: [Cypher]
+failedCyphers :: [Text]
 failedCyphers =
-  [ Cypher "CREATE (g:Guitar { brand: 'Gibson' } ) RETURN g"   M.empty
-  , Cypher "CREATE (g:Guitar { brand: 'Fender' } ) RETURN g"   M.empty
-  , Cypher "CREATE (g:Guitar { brand: 'Ibanez' } ) RETURN g"   M.empty
-  , Cypher "This is going to make it fail, BOOM!"              M.empty
-  , Cypher "CREATE (g:Guitar { brand: 'Schecter' } ) RETURN g" M.empty
+  [ "CREATE (g:Guitar { brand: 'Gibson' } ) RETURN g"
+  , "CREATE (g:Guitar { brand: 'Fender' } ) RETURN g"
+  , "CREATE (g:Guitar { brand: 'Ibanez' } ) RETURN g"
+  , "This is going to make it fail, BOOM!"
+  , "CREATE (g:Guitar { brand: 'Schecter' } ) RETURN g"
   ]
 
 -- Record parser helpers
