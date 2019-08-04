@@ -10,8 +10,8 @@ where
 import           Database.Bolt.Connection.Pipe
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Connection       ( BoltActionT
-                                                , pullKeys
-                                                , pullRecords
+                                                , queryP'
+                                                , run
                                                 )
 import           Database.Bolt.Record
 
@@ -43,9 +43,9 @@ transact cyphers = do
   handler :: IOException -> IO [Record]
   handler e = print e >> throwM TxError
   sendCypher :: Pipe -> Cypher -> IO [Record]
-  sendCypher pipe cypher = do
-    putStrLn $ "Sending Cypher " ++ show (cypherQuery cypher)
-    catch (pullKeys pipe cypher >>= pullRecords True pipe) handler
+  sendCypher pipe c = do
+    putStrLn $ "Sending Cypher " ++ show (cypherQuery c)
+    catch (run pipe $ queryP' (cypherQuery c) (cypherParams c)) handler
 
 -- |Runs a list of cypher queries with parameters as an atomic operation and discards all outputs
 transact_ :: MonadIO m => [Cypher] -> BoltActionT m ()
