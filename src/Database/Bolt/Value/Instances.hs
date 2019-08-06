@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Database.Bolt.Value.Instances where
 
@@ -8,7 +9,7 @@ import           Database.Bolt.Value.Type
 
 import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
-import           Control.Monad.Trans.State    (gets, modify)
+import           Control.Monad.State          (gets, modify)
 import           Data.Binary                  (Binary (..), decode, encode)
 import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
 import           Data.ByteString              (ByteString, append, cons,
