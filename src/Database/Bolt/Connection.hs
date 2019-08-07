@@ -14,7 +14,7 @@ import           Database.Bolt.Record
 
 import           Control.Monad                 (void)
 import           Control.Monad.IO.Class        (MonadIO (..), liftIO)
-import           Control.Monad.Trans.Reader    (ReaderT (..), ask, runReaderT)
+import           Control.Monad.Reader          (ReaderT (..), ask, runReaderT)
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (Map, empty)
 

@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Database.Bolt.Value.Instances where
 
@@ -8,7 +9,7 @@ import           Database.Bolt.Value.Type
 
 import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
-import           Control.Monad.Trans.State    (gets, modify)
+import           Control.Monad.State          (gets, modify)
 import           Data.Binary                  (Binary (..), decode, encode)
 import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
 import           Data.ByteString              (ByteString, append, cons,
@@ -106,9 +107,9 @@ instance BoltValue a => BoltValue (Map Text a) where
 
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
-                           | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
-                           | size < size16 = struct16Code `cons` encodeStrict size `append` pData
-                           | otherwise     = error "Cannot pack so large structure"
+                             | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
+                             | size < size16 = struct16Code `cons` encodeStrict size `append` pData
+                             | otherwise     = error "Cannot pack so large structure"
     where size = fromIntegral $ length lst :: Word16
           pData = sig `cons` B.concat (map pack lst)
 

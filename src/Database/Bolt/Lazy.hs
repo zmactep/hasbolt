@@ -2,9 +2,10 @@ module Database.Bolt.Lazy
     ( BoltActionT
     , connect, close, reset
     , run, queryP, query, queryP_, query_
+    , transact
     , Pipe
     , BoltCfg (..)
-    , BoltValue (..), Value (..), Structure (..), Record, RecordValue (..), at
+    , Value (..), Structure (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

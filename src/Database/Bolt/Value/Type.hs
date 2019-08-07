@@ -1,6 +1,6 @@
 module Database.Bolt.Value.Type where
 
-import           Control.Monad.Trans.State (StateT (..), evalStateT)
+import           Control.Monad.State       (StateT (..), evalStateT)
 import           Data.ByteString           (ByteString)
 import           Data.Map.Strict           (Map)
 import           Data.Text                 (Text)
