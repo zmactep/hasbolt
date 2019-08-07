@@ -12,6 +12,7 @@ import           Test.Hspec
 import           Test.QuickCheck
 
 import Database.Bolt
+import Database.Bolt.Serialization
 
 main :: IO ()
 main = hspec $ do

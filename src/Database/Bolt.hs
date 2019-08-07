@@ -5,7 +5,7 @@ module Database.Bolt
     , transact
     , Pipe
     , BoltCfg (..)
-    , BoltValue (..), Value (..), Structure (..), Record, RecordValue (..), at
+    , Value (..), Structure (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

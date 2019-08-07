@@ -107,9 +107,9 @@ instance BoltValue a => BoltValue (Map Text a) where
 
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
-                           | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
-                           | size < size16 = struct16Code `cons` encodeStrict size `append` pData
-                           | otherwise     = error "Cannot pack so large structure"
+                             | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
+                             | size < size16 = struct16Code `cons` encodeStrict size `append` pData
+                             | otherwise     = error "Cannot pack so large structure"
     where size = fromIntegral $ length lst :: Word16
           pData = sig `cons` B.concat (map pack lst)
 
