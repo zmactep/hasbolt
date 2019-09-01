@@ -1,9 +1,10 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Database.Bolt.Value.Type where
 
 import           Control.Monad.State       (StateT (..), evalStateT)
 import           Data.ByteString           (ByteString)
-import           Data.Map.Strict           (Map)
-import           Data.Text                 (Text)
+import           Data.Map.Strict           (Map, fromList)
+import           Data.Text                 (Text, pack)
 import           Data.Word                 (Word8)
 
 -- |The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
@@ -44,6 +45,50 @@ data Value = N ()
            | M (Map Text Value)
            | S Structure
   deriving (Show, Eq)
+
+-- |Every datatype that can be represented as BOLT protocol value
+class IsValue a where
+  -- |Wraps value with 'Value' constructor
+  toValue :: a -> Value
+  -- |How to represent a list of values
+  toValueList :: [a] -> Value
+  toValueList = L . fmap toValue
+
+instance IsValue () where
+  toValue = N
+
+instance IsValue Int where
+  toValue = I
+
+instance IsValue Integer where
+  toValue = I . fromIntegral
+
+instance IsValue Double where
+  toValue = F
+
+instance IsValue Float where
+  toValue = F . realToFrac
+
+instance IsValue Text where
+  toValue = T
+
+instance IsValue Char where
+  toValue = toValueList . pure
+  toValueList = T . Data.Text.pack
+
+instance IsValue a => IsValue [a] where
+  toValue = toValueList
+
+instance IsValue (Map Text Value) where
+  toValue = M
+
+-- |Wrap key-value pair with 'Value' datatype
+(=:) :: IsValue a => Text -> a -> (Text, Value)
+(=:) key val = (key, toValue val)
+
+-- |Construct properties map from list
+props :: [(Text, Value)] -> Map Text Value
+props = fromList
 
 -- = Structure types
 

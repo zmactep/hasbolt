@@ -10,8 +10,8 @@ instance FromStructure Node where
   fromStructure (Structure sig lst) | sig == sigNode = mkNode lst
                                     | otherwise      = failNode
     where mkNode :: Monad m => [Value] -> m Node
-          mkNode [I nid, L vlbls, M props] = flip (Node nid) props <$> cnvT vlbls
-          mkNode _                         = failNode
+          mkNode [I nid, L vlbls, M prps] = flip (Node nid) prps <$> cnvT vlbls
+          mkNode _                        = failNode
 
           failNode :: Monad m => m Node
           failNode = fail $ show lst ++ " is not a Node value"

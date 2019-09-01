@@ -3,9 +3,10 @@ module Database.Bolt
     , connect, close, reset
     , run, queryP, query, queryP_, query_
     , transact
+    , (=:), props
     , Pipe
     , BoltCfg (..)
-    , Value (..), Structure (..), Record, RecordValue (..), at
+    , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

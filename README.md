@@ -40,6 +40,19 @@ You can also use parameters by `queryP`. You have to use `T` constructor here fo
 λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" (fromList [("name", T "Tom")])
 ```
 
+**NB!**: Since `hasbolt-0.1.3.5` you can use more nice interface to create a properties map:
+```haskell
+λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" $ props ["name" =: "Tom"]
+```
+You can use any primitive type, list or other properties map here:
+```haskell
+λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} AND n.born = {born} RETURN n" $ props ["name" =: "Tom", "born" =: 1962]
+```
+The last feature makes you able to do this:
+```haskell
+λ> records <- run pipe $ queryP "MATCH (n:Person {name: {props}.name, born: {props}.born}) RETURN n" $ props ["props" =: props ["name" =: "Tom Cruise", "born" =: 1962]]
+```
+
 To obtain data from record you can use `at` and set of `exact` functions (the last one works for all possible Neo4j data, including primitive types, nodes, relationships and paths). So, you can do something like this:
 ```haskell
 toNode :: Monad m => Record -> m Node
