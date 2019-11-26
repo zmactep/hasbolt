@@ -57,6 +57,9 @@ class IsValue a where
 instance IsValue () where
   toValue = N
 
+instance IsValue Bool where
+  toValue = B
+
 instance IsValue Int where
   toValue = I
 
