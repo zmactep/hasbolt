@@ -18,55 +18,86 @@ $ stack haddock
 Usage example
 -------------
 
-To use all the magic just import:
 ```haskell
-λ> import Database.Bolt
+{-# LANGUAGE OverloadedStrings #-}
+
+import Database.Bolt
+
+import Data.Default
+import Data.Text
+import Control.Monad
+import Control.Monad.Except
+
+nineties :: BoltActionT IO [Text]
+nineties = do records <- query "MATCH (nineties:Movie) WHERE nineties.released >= 1990 AND nineties.released < 2000 RETURN nineties.title"
+              forM records $ \record -> record `at` "nineties.title"
+
+genericABN :: RecordValue a => Text -> BoltActionT IO [a]
+genericABN name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN tom" (props ["name" =: name])
+                     nodes <- forM toms' $ \record -> record `at` "tom"
+                     forM nodes $ \node -> nodeProps node `at` "name"
+
+actorsByNameYear :: Text -> Int -> BoltActionT IO [Node]
+actorsByNameYear name year = do toms' <- queryP "MATCH (n:Person {name: {props}.name, born: {props}.born}) RETURN n" $ props ["props" =: props ["name" =: name, "born" =: year]]
+                                forM toms' $ \record -> record `at` "n"
+
+actorsByName :: Text -> BoltActionT IO [Text]
+actorsByName = genericABN
+
+wrongType :: Text -> BoltActionT IO [Int]
+wrongType = genericABN 
+
+typoInRequest :: Text -> BoltActionT IO [Text]
+typoInRequest name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN not_tom" (props ["name" =: name])
+                        nodes <- forM toms' $ \record -> record `at` "tom"
+                        forM nodes $ \node -> nodeProps node `at` "name"
+
+typoInField :: Text -> BoltActionT IO [Text]
+typoInField name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN tom" (props ["name" =: name])
+                      nodes <- forM toms' $ \record -> record `at` "not_tom"
+                      forM nodes $ \node -> nodeProps node `at` "name"
+
+main :: IO ()
+main = do pipe <- connect $ def { user = "neo4j", password = "12345" }
+          -- Prints nineties example from Movies tutorial
+          putStrLn "Movies (nineties):" 
+          titles <- run pipe nineties 
+          forM_ titles print
+          -- Prints all actors called Tom 
+          putStrLn "\nActors (Tom):"
+          toms' <- run pipe $ actorsByName "Tom" 
+          forM_ toms' print
+          -- Prints Tom Hanks 
+          putStrLn "\nNodes (Tom Cruise):"
+          nodes' <- run pipe $ actorsByNameYear "Tom Cruise" 1962 
+          forM_ nodes' print
+           -- Prints an error as type is wrong 
+          putStrLn "\nWrong return type:"
+          wtype' <- run pipe $ wrongType "Tom" `catchError` \e@(WrongMessageFormat _) -> liftIO (print e) >> pure [] 
+          forM_ wtype' print
+          -- Prints an error as the request contains a typo
+          putStrLn "\nTypo in request:"
+          typor' <- run pipe $ typoInRequest "Tom" `catchError` \(ResponseError e) -> liftIO (print e) >> pure [] 
+          forM_ typor' print
+          -- Prints an error as the field name contains a typo
+          putStrLn "\nTypo in field:"
+          typof' <- run pipe $ typoInField "Tom" `catchError` \e@(RecordHasNoKey _) -> liftIO (print e) >> pure [] 
+          forM_ typof' print
+          close pipe
 ```
 
-To create new connection use (it is highly recommended to use with [resource-pool](https://hackage.haskell.org/package/resource-pool)):
-```haskell
-λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
-```
+Notes
+-----
 
-**NB!** For Neo4j 3.4+ also use `version = 2` to work with [new datatypes](#new-types).
-
-To make query (`query` takes `Data.Text`, so I use **OverloadedStrings** here):
-```haskell
-λ> records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
-```
-
-You can also use parameters by `queryP`. You have to use `T` constructor here for text parameter, as Haskell is strong-typed language (see more about values in `Data.Value.Type`):
-```haskell
-λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" (fromList [("name", T "Tom")])
-```
-
-**NB!**: Since `hasbolt-0.1.3.5` you can use more nice interface to create a properties map:
-```haskell
-λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} RETURN n" $ props ["name" =: "Tom"]
-```
-You can use any primitive type, list or other properties map here:
-```haskell
-λ> records <- run pipe $ queryP "MATCH (n:Person) WHERE n.name CONTAINS {name} AND n.born = {born} RETURN n" $ props ["name" =: "Tom", "born" =: 1962]
-```
-The last feature makes you able to do this:
-```haskell
-λ> records <- run pipe $ queryP "MATCH (n:Person {name: {props}.name, born: {props}.born}) RETURN n" $ props ["props" =: props ["name" =: "Tom Cruise", "born" =: 1962]]
-```
-
-To obtain data from record you can use `at` and set of `exact` functions (the last one works for all possible Neo4j data, including primitive types, nodes, relationships and paths). So, you can do something like this:
-```haskell
-toNode :: Monad m => Record -> m Node
-toNode record = record `at` "n" >>= exact
-
-λ> let x = head records
-λ> toNode x >>= print
-Node {nodeIdentity = 24, labels = ["Person"], nodeProps = fromList [("born",I 1962),("name",T "Tom Cruise")]}
-```
-
-To close connection just use:
-```haskell
-λ> close pipe
-```
+* Do not forget to import `Data.Default` to obtain default connection configuration.
+* `OverloadedStrings` are very welcome, as the library doesn't use `String`s at all.
+* You can use `Database.Bolt.Lazy` to work with lazy IO. In this case do not forget to read all the records before you send a next query.
+* See [`test/TransactionSpec.hs`](https://github.com/zmactep/hasbolt/blob/master/test/TransactionSpec.hs) for an example of transactions usage.
+* Feel free to implement your own serialization procedures with `Database.Bolt.Serialization` module import.
+* Pipes work great with [resource-pool](https://hackage.haskell.org/package/resource-pool).
+* For neo4j 3.4+ use `version = 2` in connection configuration. This lets you to use [new datatypes](#new-types).
+* You can use both syntax to create properties maps: `fromList [("born", I 1962)]` or `props ["born" =: 1962]`.
+* Note that you have to make a type hint for `Text` values in the second construction, as Haskell cannot deduce it on its own.
 
 New types
 ---------

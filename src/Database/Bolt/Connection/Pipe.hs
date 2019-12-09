@@ -9,6 +9,7 @@ import           Database.Bolt.Value.Type
 import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
                                                            send, sendMany)
 
+import           Control.Exception                   (throwIO)
 import           Control.Monad                       (forM_, unless, void, when)
 import           Control.Monad.Except                (MonadError (..), ExceptT, runExceptT)
 import           Control.Monad.IO.Class              (MonadIO (..))
@@ -49,7 +50,7 @@ makeIO :: MonadIO m => (a -> ExceptT BoltError m b) -> a -> m b
 makeIO action arg = do actionIO <- runExceptT (action arg)
                        case actionIO of
                          Right x -> pure x
-                         Left  e -> error $ show e
+                         Left  e -> liftIO $ throwIO e
 
 -- = Internal interfaces
 

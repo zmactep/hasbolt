@@ -9,7 +9,6 @@ import           Database.Bolt.Value.Instances      ()
 
 import           Control.Monad.Except               (MonadError (..))
 import           Data.Map.Strict                    (Map)
-import qualified Data.Map.Strict                    as M
 import           Data.Text                          (Text)
 
 -- |Result type for query requests
@@ -45,6 +44,9 @@ instance RecordValue Text where
   exactEither (T t) = pure t
   exactEither _     = throwError NotString
 
+instance RecordValue Value where
+  exactEither = pure
+
 instance RecordValue a => RecordValue [a] where
   exactEither (L l) = traverse exactEither l
   exactEither _     = throwError NotList 
@@ -71,7 +73,5 @@ instance RecordValue URelationship where
 
 instance RecordValue Path where
   exactEither (S s) = fromStructure s
-  exactEither _     =  throwError $ Not "Path"
+  exactEither _     = throwError $ Not "Path"
 
-at :: Record -> Text -> Maybe Value
-at = flip M.lookup

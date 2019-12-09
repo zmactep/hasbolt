@@ -4,6 +4,7 @@ module Database.Bolt.Connection
   ( BoltActionT
   , BoltError (..)
   , UnpackError (..)
+  , at
   , run
   , queryP, query
   , queryP', query'
@@ -16,6 +17,7 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Type
 import           Database.Bolt.Record
 
+import           Control.Exception             (throwIO)
 import           Control.Monad                 (void)
 import           Control.Monad.IO.Class        (MonadIO (..), liftIO)
 import           Control.Monad.Reader          (ReaderT (..), ask, runReaderT)
@@ -23,18 +25,25 @@ import           Control.Monad.Except          (MonadError (..), ExceptT, runExc
                                                 withExceptT, lift)
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (Map, empty, fromList)
+import qualified Data.Map.Strict               as M (lookup)
 
 import           System.IO.Unsafe              (unsafeInterleaveIO)
 
 -- |Monad Transformer to do all BOLT actions in
 type BoltActionT m = ReaderT Pipe (ExceptT BoltError m)
 
+-- |Gets result from obtained record
+at :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m a
+at record key = case M.lookup key record of
+                  Just x  -> lift $ withExceptT WrongMessageFormat (exact x)
+                  Nothing -> throwError $ RecordHasNoKey key
+
 -- |Runs BOLT action on selected pipe
 run :: MonadIO m => Pipe -> BoltActionT m a -> m a
 run pipe action = do result <- runExceptT (runReaderT action pipe)
                      case result of
                        Right x -> pure x
-                       Left r  -> error $ show r
+                       Left r  -> liftIO $ throwIO r
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's. Lazy version
 queryP :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
@@ -74,9 +83,7 @@ pullKeys cypher params = do pipe <- ask
                             mkKeys status
   where
     mkKeys :: MonadIO m => Response -> BoltActionT m [Text]
-    mkKeys (ResponseSuccess response) = case response `at` "fields" of
-                                          Just x  -> lift $ withExceptT WrongMessageFormat (exact x)
-                                          Nothing -> pure []
+    mkKeys (ResponseSuccess response) = response `at` "fields" `catchError` \(RecordHasNoKey _) -> pure []
     mkKeys x                          = throwError $ ResponseError (mkFailure x)
 
 pullRecords :: MonadIO m => Bool -> [Text] -> BoltActionT m [Record]

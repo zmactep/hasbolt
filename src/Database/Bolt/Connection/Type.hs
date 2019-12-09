@@ -4,6 +4,7 @@ module Database.Bolt.Connection.Type where
 
 import           Database.Bolt.Value.Type hiding (unpack)
 
+import           Control.Exception               (Exception (..))
 import           Data.Default                    (Default (..))
 import           Data.Monoid                     ((<>))
 import           Data.Map.Strict                 (Map)
@@ -29,16 +30,22 @@ data BoltError = UnsupportedServerVersion
                | WrongMessageFormat UnpackError
                | NoStructureInResponse
                | ResponseError ResponseError
+               | RecordHasNoKey Text
+               | UserError String
   deriving (Eq, Ord)
 
 instance Show BoltError where
   show UnsupportedServerVersion = "Cannot connect: unsupported server version"
   show AuthentificationFailed   = "Cannot connect: authentification failed"
-  show ResetFailed              = "Cannot reset after failure answer"
+  show ResetFailed              = "Cannot reset current pipe: recieved failure from server"
   show CannotReadChunk          = "Cannot fetch: chunk read failed"
   show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")"
   show NoStructureInResponse    = "Cannot fetch: no structure in response"
   show (ResponseError re)       = show re
+  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
+  show (UserError msg)          = "User error: " <> msg
+
+instance Exception BoltError
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
@@ -56,7 +63,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
                 , version       = 1
-                , userAgent     = "hasbolt/1.3"
+                , userAgent     = "hasbolt/1.4"
                 , maxChunkSize  = 65535
                 , socketTimeout = 5
                 , host          = "127.0.0.1"
