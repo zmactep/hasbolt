@@ -2,13 +2,43 @@
 
 module Database.Bolt.Connection.Type where
 
-import           Database.Bolt.Value.Type
+import           Database.Bolt.Value.Type hiding (unpack)
 
 import           Data.Default                    (Default (..))
+import           Data.Monoid                     ((<>))
 import           Data.Map.Strict                 (Map)
-import           Data.Text                       (Text)
+import           Data.Text                       (Text, unpack)
 import           Data.Word                       (Word16, Word32)
 import           Network.Connection              (Connection)
+
+
+-- |Error obtained from BOLT server
+data ResponseError = KnownResponseFailure Text Text
+                   | UnknownResponseFailure
+  deriving (Eq, Ord)
+
+instance Show ResponseError where
+  show (KnownResponseFailure tpe msg) = unpack tpe <> ": " <> unpack msg
+  show UnknownResponseFailure         = "Unknown response error"
+
+-- |Error that can appear during 'BoltActionT' manipulations
+data BoltError = UnsupportedServerVersion
+               | AuthentificationFailed
+               | ResetFailed
+               | CannotReadChunk
+               | WrongMessageFormat UnpackError
+               | NoStructureInResponse
+               | ResponseError ResponseError
+  deriving (Eq, Ord)
+
+instance Show BoltError where
+  show UnsupportedServerVersion = "Cannot connect: unsupported server version"
+  show AuthentificationFailed   = "Cannot connect: authentification failed"
+  show ResetFailed              = "Cannot reset after failure answer"
+  show CannotReadChunk          = "Cannot fetch: chunk read failed"
+  show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")"
+  show NoStructureInResponse    = "Cannot fetch: no structure in response"
+  show (ResponseError re)       = show re
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
