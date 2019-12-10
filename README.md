@@ -201,9 +201,11 @@ Codes of Coordinate Reference Systems:
 ### Example
 
 ```haskell
+λ> :set -XScopedTypeVariables 
 λ> pipe <- connect $ def { user = "neo4j", password = "neo4j", version = 2 }
-λ> records <- run pipe $ query "RETURN point(x: 1, y: 2, z: 3) as point"
-λ> (head records) `at` "point"
+λ> point :: Value <- run pipe $ do records <- query "RETURN point({x: 1, y: 2, z: 3}) as point"
+                                   (head records) `at` "point"
+λ> point 
 S (Structure {signature = 89, fields = [I 9157,F 1.0,F 2.0,F 3.0]})
 λ> close pipe
 ```
