@@ -13,7 +13,7 @@ import           Database.Bolt.Connection       ( BoltActionT
 
 -- |Runs a sequence of actions as transaction. All queries would be rolled back
 -- in case of any exception inside the block.
-transact :: (MonadError e m, MonadIO m) => BoltActionT m a -> BoltActionT m a
+transact :: MonadIO m => BoltActionT m a -> BoltActionT m a
 transact actions = do
     txBegin
     let processErrors = flip catchError $ \e -> txRollback >> throwError e

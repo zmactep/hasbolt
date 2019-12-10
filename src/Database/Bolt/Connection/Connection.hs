@@ -2,7 +2,7 @@ module Database.Bolt.Connection.Connection where
 
 import           Control.Applicative    (pure, (<$>))
 import           Control.Monad          (when, forM_)
-import           Control.Monad.IO.Class (MonadIO (..))
+import           Control.Monad.Trans    (MonadIO (..))
 import           Data.ByteString        (ByteString, null)
 import           Data.Default           (Default (..))
 import           Network.Socket         (PortNumber)

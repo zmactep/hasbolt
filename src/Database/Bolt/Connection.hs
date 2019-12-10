@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
+
 module Database.Bolt.Connection
   ( BoltActionT
   , BoltError (..)
   , UnpackError (..)
   , at
-  , run
+  , run, runE
   , queryP, query
   , queryP', query'
   , queryP_, query_
@@ -19,28 +20,21 @@ import           Database.Bolt.Record
 
 import           Control.Exception             (throwIO)
 import           Control.Monad                 (void)
-import           Control.Monad.IO.Class        (MonadIO (..), liftIO)
-import           Control.Monad.Reader          (ReaderT (..), ask, runReaderT)
-import           Control.Monad.Except          (MonadError (..), ExceptT, runExceptT, 
-                                                withExceptT, lift)
+import           Control.Monad.Trans           (MonadIO (..))
+import           Control.Monad.Reader          (MonadReader (..), runReaderT)
+import           Control.Monad.Except          (MonadError (..), runExceptT)
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (Map, empty, fromList)
-import qualified Data.Map.Strict               as M (lookup)
 
 import           System.IO.Unsafe              (unsafeInterleaveIO)
 
--- |Monad Transformer to do all BOLT actions in
-type BoltActionT m = ReaderT Pipe (ExceptT BoltError m)
-
--- |Gets result from obtained record
-at :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m a
-at record key = case M.lookup key record of
-                  Just x  -> lift $ withExceptT WrongMessageFormat (exact x)
-                  Nothing -> throwError $ RecordHasNoKey key
-
 -- |Runs BOLT action on selected pipe
+runE :: MonadIO m => Pipe -> BoltActionT m a -> m (Either BoltError a)
+runE pipe action = runExceptT (runReaderT (runBoltActionT action) pipe) 
+
+-- |Runs BOLT action on selected pipe (with errors throw)
 run :: MonadIO m => Pipe -> BoltActionT m a -> m a
-run pipe action = do result <- runExceptT (runReaderT action pipe)
+run pipe action = do result <- runE pipe action
                      case result of
                        Right x -> pure x
                        Left r  -> liftIO $ throwIO r
@@ -64,7 +58,7 @@ query' cypher = queryP' cypher empty
 -- |Runs Cypher query with parameters and ignores response
 queryP_ :: MonadIO m => Text -> Map Text Value -> BoltActionT m ()
 queryP_ cypher params = do void $ sendRequest cypher params
-                           ask >>= lift . discardAll
+                           ask >>= liftE . discardAll
 
 -- |Runs Cypher query and ignores response
 query_ :: MonadIO m => Text -> BoltActionT m ()
@@ -79,7 +73,7 @@ querySL strict cypher params = do keys <- pullKeys cypher params
 pullKeys :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Text]
 pullKeys cypher params = do pipe <- ask
                             status <- sendRequest cypher params
-                            lift $ flush pipe RequestPullAll
+                            liftE $ flush pipe RequestPullAll
                             mkKeys status
   where
     mkKeys :: MonadIO m => Response -> BoltActionT m [Text]
@@ -88,7 +82,7 @@ pullKeys cypher params = do pipe <- ask
 
 pullRecords :: MonadIO m => Bool -> [Text] -> BoltActionT m [Record]
 pullRecords strict keys = do pipe <- ask
-                             resp <- lift $ fetch pipe
+                             resp <- liftE $ fetch pipe
                              cases resp
   where
     cases :: MonadIO m => Response -> BoltActionT m [Record]
@@ -110,7 +104,7 @@ pullRecords strict keys = do pipe <- ask
 sendRequest :: MonadIO m => Text -> Map Text Value -> BoltActionT m Response
 sendRequest cypher params =
   do pipe <- ask
-     lift $ do
+     liftE $ do
          flush pipe $ RequestRun cypher params
          status <- fetch pipe
          if isSuccess status

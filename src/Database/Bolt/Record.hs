@@ -6,9 +6,11 @@ module Database.Bolt.Record where
 
 import           Database.Bolt.Value.Type
 import           Database.Bolt.Value.Instances      ()
+import           Database.Bolt.Connection.Type
 
-import           Control.Monad.Except               (MonadError (..))
+import           Control.Monad.Except               (MonadError (..), withExceptT)
 import           Data.Map.Strict                    (Map)
+import qualified Data.Map.Strict               as M (lookup)
 import           Data.Text                          (Text)
 
 -- |Result type for query requests
@@ -75,3 +77,8 @@ instance RecordValue Path where
   exactEither (S s) = fromStructure s
   exactEither _     = throwError $ Not "Path"
 
+-- |Gets result from obtained record
+at :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m a
+at record key = case M.lookup key record of
+                  Just x  -> liftE $ withExceptT WrongMessageFormat (exact x)
+                  Nothing -> throwError $ RecordHasNoKey key

@@ -1,10 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Database.Bolt.Connection.Type where
 
 import           Database.Bolt.Value.Type hiding (unpack)
 
-import           Control.Exception               (Exception (..))
+import           Control.Exception               (Exception (..), SomeException, handle)
+import           Control.Monad.Trans             (MonadTrans (..), MonadIO (..))
+import           Control.Monad.Reader            (MonadReader (..), ReaderT)
+import           Control.Monad.Except            (MonadError (..), ExceptT (..))
+
 import           Data.Default                    (Default (..))
 import           Data.Monoid                     ((<>))
 import           Data.Map.Strict                 (Map)
@@ -31,8 +37,7 @@ data BoltError = UnsupportedServerVersion
                | NoStructureInResponse
                | ResponseError ResponseError
                | RecordHasNoKey Text
-               | UserError String
-  deriving (Eq, Ord)
+               | NonHasboltError SomeException
 
 instance Show BoltError where
   show UnsupportedServerVersion = "Cannot connect: unsupported server version"
@@ -43,9 +48,22 @@ instance Show BoltError where
   show NoStructureInResponse    = "Cannot fetch: no structure in response"
   show (ResponseError re)       = show re
   show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
-  show (UserError msg)          = "User error: " <> msg
+  show (NonHasboltError msg)    = "User error: " <> show msg
 
 instance Exception BoltError
+
+-- |Monad Transformer to do all BOLT actions in
+newtype BoltActionT m a = BoltActionT { runBoltActionT :: ReaderT Pipe (ExceptT BoltError m) a }
+  deriving (Functor, Applicative, Monad, MonadError BoltError, MonadReader Pipe)
+
+instance MonadTrans BoltActionT where
+  lift = BoltActionT . lift . lift
+
+instance MonadIO m => MonadIO (BoltActionT m) where
+  liftIO = BoltActionT . lift . ExceptT . liftIO . handle (pure . Left . NonHasboltError) . fmap Right
+
+liftE :: Monad m => ExceptT BoltError m a -> BoltActionT m a
+liftE = BoltActionT . lift
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value

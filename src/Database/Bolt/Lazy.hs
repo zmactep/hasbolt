@@ -2,7 +2,7 @@ module Database.Bolt.Lazy
     ( BoltActionT
     , BoltError (..), UnpackError (..)
     , connect, close, reset
-    , run, queryP, query, queryP_, query_
+    , run, runE, queryP, query, queryP_, query_
     , transact
     , (=:), props
     , Pipe

@@ -12,7 +12,7 @@ import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
 import           Control.Exception                   (throwIO)
 import           Control.Monad                       (forM_, unless, void, when)
 import           Control.Monad.Except                (MonadError (..), ExceptT, runExceptT)
-import           Control.Monad.IO.Class              (MonadIO (..))
+import           Control.Monad.Trans                 (MonadIO (..))
 import           Data.ByteString                     (ByteString)
 import qualified Data.ByteString                     as B (concat, length, null,
                                                            splitAt)
