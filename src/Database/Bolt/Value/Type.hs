@@ -1,14 +1,47 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Database.Bolt.Value.Type where
 
-import           Control.Monad.State       (StateT (..), evalStateT)
+import           Control.Monad.Fail        as Fail (MonadFail (..))
+import           Control.Monad.State       (MonadState (..), StateT (..), evalStateT)
+import           Control.Monad.Except      (MonadError (..), ExceptT, runExceptT)
 import           Data.ByteString           (ByteString)
 import           Data.Map.Strict           (Map, fromList)
-import           Data.Text                 (Text, pack)
+import           Data.Text                 (Text)
+import qualified Data.Text                 as T (unpack, pack)
 import           Data.Word                 (Word8)
 
+-- |Error during unpack process
+data UnpackError = NotNull
+                 | NotInt
+                 | NotFloat
+                 | NotString
+                 | NotBool
+                 | NotList
+                 | NotDict
+                 | NotStructure
+                 | NotValue
+                 | Not Text
+  deriving (Eq, Ord)
+
+instance Show UnpackError where
+  show NotNull      = "Not a Null value"
+  show NotInt       = "Not an Int value"
+  show NotFloat     = "Not a Float value"
+  show NotString    = "Not a String value"
+  show NotBool      = "Not a Bool value"
+  show NotList      = "Not a List value"
+  show NotDict      = "Not a Dict value"
+  show NotStructure = "Not a Structure value"
+  show NotValue     = "Not a Value value"
+  show (Not what)   = "Not a " <> T.unpack what <> " (Structure) value"
+
 -- |The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
-type UnpackT = StateT ByteString
+newtype UnpackT m a = UnpackT { runUnpackT :: ExceptT UnpackError (StateT ByteString m) a }
+  deriving (Functor, Applicative, Monad, MonadError UnpackError, MonadState ByteString)
 
 -- |The 'Structure' datatype describes Neo4j structure for BOLT protocol
 data Structure = Structure { signature :: Word8
@@ -18,7 +51,7 @@ data Structure = Structure { signature :: Word8
 
 -- |Generalizes all datatypes that can be deserialized from 'Structure's.
 class FromStructure a where
-  fromStructure :: Monad m => Structure -> m a
+  fromStructure :: MonadError UnpackError m => Structure -> m a
 
 -- |Generalizes all datatypes that can be serialized to 'Structure's.
 class ToStructure a where
@@ -31,9 +64,20 @@ class BoltValue a where
   -- |Unpacks in a State monad to get values from single 'ByteString'
   unpackT :: Monad m => UnpackT m a
 
-  -- |Unpacks a 'ByteString' to selected value
-  unpack :: Monad m  => ByteString -> m a
-  unpack = evalStateT unpackT
+-- |Unpacks a 'ByteString' to selected value
+unpack :: (Monad m, BoltValue a)  => ByteString -> m (Either UnpackError a)
+unpack = unpackAction unpackT
+
+-- |Old-style unpack that runs 'fail' on error
+unpackF :: (MonadFail m, BoltValue a) => ByteString -> m a
+unpackF bs = do result <- unpack bs
+                case result of
+                  Right x -> pure x
+                  Left  e -> Fail.fail $ show e
+
+-- |Unpacks a 'ByteString' to selected value by some custom action
+unpackAction :: Monad m => UnpackT m a -> ByteString -> m (Either UnpackError a)
+unpackAction action = evalStateT (runExceptT $ runUnpackT action) 
 
 -- |The 'Value' datatype generalizes all primitive 'BoltValue's
 data Value = N ()
@@ -77,7 +121,7 @@ instance IsValue Text where
 
 instance IsValue Char where
   toValue = toValueList . pure
-  toValueList = T . Data.Text.pack
+  toValueList = T . T.pack
 
 instance IsValue a => IsValue [a] where
   toValue = toValueList
@@ -122,3 +166,4 @@ data Path = Path { pathNodes         :: [Node]          -- ^Chain of 'Node's in 
                  , pathSequence      :: [Int]           -- ^Path sequence
                  }
   deriving (Show, Eq)
+

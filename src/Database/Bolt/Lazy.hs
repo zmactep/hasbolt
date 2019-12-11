@@ -1,12 +1,13 @@
 module Database.Bolt.Lazy
     ( BoltActionT
+    , BoltError (..), UnpackError (..)
     , connect, close, reset
-    , run, queryP, query, queryP_, query_
+    , run, runE, queryP, query, queryP_, query_
     , transact
     , (=:), props
     , Pipe
     , BoltCfg (..)
-    , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), at
+    , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), exact, exactMaybe, at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 

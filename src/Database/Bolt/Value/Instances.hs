@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Database.Bolt.Value.Instances where
 
@@ -10,6 +11,7 @@ import           Database.Bolt.Value.Type
 import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
 import           Control.Monad.State          (gets, modify)
+import           Control.Monad.Except         (MonadError (..))
 import           Data.Binary                  (Binary (..), decode, encode)
 import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
 import           Data.ByteString              (ByteString, append, cons,
@@ -28,7 +30,7 @@ instance BoltValue () where
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | m == nullCode = pure ()
-                           | otherwise     = fail "Not a Null value"
+                           | otherwise     = throwError NotNull
 
 instance BoltValue Bool where
   pack True  = singleton trueCode
@@ -37,7 +39,7 @@ instance BoltValue Bool where
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | m == trueCode  = pure True
                            | m == falseCode = pure False
-                           | otherwise      = fail "Not a Bool value"
+                           | otherwise      = throwError NotBool
 
 instance BoltValue Int where
   pack int | isTinyInt int = encodeStrict (fromIntegral int :: Word8)
@@ -53,14 +55,14 @@ instance BoltValue Int where
                            | m == int16Code = toInt <$> unpackI16
                            | m == int32Code = toInt <$> unpackI32
                            | m == int64Code = toInt <$> unpackI64
-                           | otherwise      = fail "Not an Int value"
+                           | otherwise      = throwError NotInt
 
 instance BoltValue Double where
   pack dbl = cons doubleCode $ encodeStrict (doubleToWord dbl)
 
   unpackT = unpackW8 >>= unpackByMarker
     where unpackByMarker m | m == doubleCode = wordToDouble <$> unpackW64
-                           | otherwise       = fail "Not a Double value"
+                           | otherwise       = throwError NotFloat
 
 instance BoltValue Text where
   pack txt = mkPackedCollection (B.length pbs) pbs (textConst, text8Code, text16Code, text32Code)
@@ -71,7 +73,7 @@ instance BoltValue Text where
                            | m == text8Code  = toInt <$> unpackW8 >>= unpackTextBySize
                            | m == text16Code = toInt <$> unpackW16 >>= unpackTextBySize
                            | m == text32Code = toInt <$> unpackW32 >>= unpackTextBySize
-                           | otherwise       = fail "Not a Text value"
+                           | otherwise       = throwError NotString
           unpackTextBySize size = do str <- gets (B.take size)
                                      modify (B.drop size)
                                      pure $ decodeUtf8 str
@@ -85,7 +87,7 @@ instance BoltValue a => BoltValue [a] where
                            | m == list8Code  = toInt <$> unpackW8 >>= unpackListBySize
                            | m == list16Code = toInt <$> unpackW16 >>= unpackListBySize
                            | m == list32Code = toInt <$> unpackW32 >>= unpackListBySize
-                           | otherwise       = fail "Not a List value"
+                           | otherwise       = throwError NotList
           unpackListBySize size = forM [1..size] $ const unpackT
 
 instance BoltValue a => BoltValue (Map Text a) where
@@ -98,7 +100,7 @@ instance BoltValue a => BoltValue (Map Text a) where
                            | m == dict8Code  = toInt <$> unpackW8 >>= unpackDictBySize
                            | m == dict16Code = toInt <$> unpackW16 >>= unpackDictBySize
                            | m == dict32Code = toInt <$> unpackW32 >>= unpackDictBySize
-                           | otherwise       = error "Not a Dict value"
+                           | otherwise       = throwError NotDict 
           unpackDictBySize = (M.fromList <$>) . unpackPairsBySize
           unpackPairsBySize size = forM [1..size] $ const $ do
                                      key <- unpackT
@@ -107,9 +109,9 @@ instance BoltValue a => BoltValue (Map Text a) where
 
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
-                             | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
-                             | size < size16 = struct16Code `cons` encodeStrict size `append` pData
-                             | otherwise     = error "Cannot pack so large structure"
+                           | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
+                           | size < size16 = struct16Code `cons` encodeStrict size `append` pData
+                           | otherwise     = error "Cannot pack so large structure"
     where size = fromIntegral $ length lst :: Word16
           pData = sig `cons` B.concat (map pack lst)
 
@@ -117,7 +119,7 @@ instance BoltValue Structure where
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
                            | m == struct8Code  = toInt <$> unpackW8 >>= unpackStructureBySize
                            | m == struct16Code = toInt <$> unpackW16 >>= unpackStructureBySize
-                           | otherwise         = fail "Not a Structure value"
+                           | otherwise         = throwError NotStructure
           unpackStructureBySize size = Structure <$> unpackW8 <*> replicateM size unpackT
 
 instance BoltValue Value where
@@ -139,11 +141,50 @@ instance BoltValue Value where
                            | isList   m = L <$> unpackT
                            | isDict   m = M <$> unpackT
                            | isStruct m = S <$> unpackT
-                           | otherwise  = fail "Not a Value value"
+                           | otherwise  = throwError NotValue 
 
--- |Structure unpack function
-unpackS :: (Monad m, FromStructure a) => ByteString -> m a
-unpackS bs = unpack bs >>= fromStructure
+-- = Structure instances for Neo4j structures
+
+instance FromStructure Node where
+  fromStructure struct =
+    case struct of
+      (Structure sig [I nid, L vlbls, M prps]) | sig == sigNode -> flip (Node nid) prps <$> cnvT vlbls
+      _                                                         -> throwError $ Not "Node"
+    where
+      cnvT []       = pure []
+      cnvT (T x:xs) = (x:) <$> cnvT xs
+      cnvT _        = throwError NotString 
+
+instance FromStructure Relationship where
+  fromStructure struct =
+    case struct of
+      (Structure sig [I rid, I sni, I eni, T rt, M rp]) | sig == sigRel -> pure $ Relationship rid sni eni rt rp
+      _                                                                 -> throwError $ Not "Relationship"
+
+instance FromStructure URelationship where
+  fromStructure struct =
+    case struct of
+      (Structure sig [I rid, T rt, M rp]) | sig == sigURel -> pure $ URelationship rid rt rp
+      _                                                    -> throwError $ Not "URelationship"
+
+instance FromStructure Path where
+  fromStructure struct = 
+    case struct of
+      (Structure sig [L vnp, L vrp, L vip]) | sig == sigPath -> Path <$> cnvN vnp <*> cnvR vrp <*> cnvI vip
+      _                                                      -> throwError $ Not "Path"
+    where
+      cnvN []       = pure []
+      cnvN (S x:xs) = (:) <$> fromStructure x <*> cnvN xs
+      cnvN _        = throwError $ Not "Node"
+      
+      cnvR []       = pure []
+      cnvR (S x:xs) = (:) <$> fromStructure x <*> cnvR xs
+      cnvR _        = throwError NotStructure  
+      
+      cnvI []       = pure []
+      cnvI (I x:xs) = (x:) <$> cnvI xs
+      cnvI _        = throwError NotInt
+
 
 -- = Integer values unpackers
 

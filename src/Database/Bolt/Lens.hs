@@ -22,7 +22,7 @@ type Fold s a = forall f. (Applicative f, Contravariant f) => (a -> f a) -> (s -
 -- | This 'Fold' extracts value of required type from 'B.Value'. If 'B.Value' contains wrong
 -- type, 'exact' is an empty 'Fold'.
 exact :: B.RecordValue a => Fold B.Value a
-exact = to B.exact . _Just
+exact = to B.exactMaybe . _Just
 
 -- | Extract field by given key from 'B.Record'. If there is no such key or the type is wrong,
 -- this is an empty 'Fold'.

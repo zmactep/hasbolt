@@ -1,16 +1,16 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Bolt.Record where
 
-import           Database.Bolt.Connection.Type
-import           Database.Bolt.Connection.Instances
-import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
+import           Database.Bolt.Value.Instances      ()
+import           Database.Bolt.Connection.Type
 
+import           Control.Monad.Except               (MonadError (..), withExceptT)
 import           Data.Map.Strict                    (Map)
-import qualified Data.Map.Strict                    as M
-import           Data.Maybe                         (fromMaybe)
+import qualified Data.Map.Strict               as M (lookup)
 import           Data.Text                          (Text)
 
 -- |Result type for query requests
@@ -18,65 +18,67 @@ type Record = Map Text Value
 
 -- |Get exact type from Value
 class RecordValue a where
-  exact :: Monad m => Value -> m a
+  exactEither :: Value -> Either UnpackError a
+
+exact :: (MonadError UnpackError m, RecordValue a) => Value -> m a
+exact = either throwError pure . exactEither
+
+exactMaybe :: RecordValue a => Value -> Maybe a
+exactMaybe = either (const Nothing) Just . exactEither
 
 instance RecordValue () where
-  exact (N _) = pure ()
-  exact x     = fail $ show x ++ " is not a Null value"
+  exactEither (N _) = pure ()
+  exactEither _     = throwError NotNull 
 
 instance RecordValue Bool where
-  exact (B b) = pure b
-  exact x     = fail $ show x ++ " is not a Bool value"
+  exactEither (B b) = pure b
+  exactEither _     = throwError NotBool
 
 instance RecordValue Int where
-  exact (I i) = pure i
-  exact x     = fail $ show x ++ " is not an Int value"
+  exactEither (I i) = pure i
+  exactEither _     = throwError NotInt
 
 instance RecordValue Double where
-  exact (F d) = pure d
-  exact x     = fail $ show x ++ " is not a Double value"
+  exactEither (F d) = pure d
+  exactEither _     = throwError NotFloat
 
 instance RecordValue Text where
-  exact (T t) = pure t
-  exact x     = fail $ show x ++ " is not a Text value"
+  exactEither (T t) = pure t
+  exactEither _     = throwError NotString
+
+instance RecordValue Value where
+  exactEither = pure
 
 instance RecordValue a => RecordValue [a] where
-  exact (L l) = traverse exact l
-  exact x     = fail $ show x ++ " is not a List value"
+  exactEither (L l) = traverse exactEither l
+  exactEither _     = throwError NotList 
 
 instance RecordValue a => RecordValue (Maybe a) where
-  exact (N _) = pure Nothing
-  exact x     = Just <$> exact x
+  exactEither (N _) = pure Nothing
+  exactEither x     = Just <$> exactEither x
 
 instance RecordValue (Map Text Value) where
-  exact (M m) = pure m
-  exact x     = fail $ show x ++ " is not a Map value"
+  exactEither (M m) = pure m
+  exactEither _     = throwError NotDict
 
 instance RecordValue Node where
-  exact (S s) = fromStructure s
-  exact x     = fail $ show x ++ " is not a Node value"
+  exactEither (S s) = fromStructure s
+  exactEither _     = throwError $ Not "Node" 
 
 instance RecordValue Relationship where
-  exact (S s) = fromStructure s
-  exact x     = fail $ show x ++ " is not a Relationship value"
+  exactEither (S s) = fromStructure s
+  exactEither _     = throwError $ Not "Relationship"
 
 instance RecordValue URelationship where
-  exact (S s) = fromStructure s
-  exact x     = fail $ show x ++ " is not a URelationship value"
+  exactEither (S s) = fromStructure s
+  exactEither _     = throwError $ Not "URelationship" 
 
 instance RecordValue Path where
-  exact (S s) = fromStructure s
-  exact x     = fail $ show x ++ " is not a Path value"
+  exactEither (S s) = fromStructure s
+  exactEither _     = throwError $ Not "Path"
 
-at :: Monad m => Record -> Text -> m Value
-at record key = case key `M.lookup` record of
-                  Just result -> pure result
-                  Nothing     -> fail $ "No such key (" ++ show key ++ ") in record"
-
-mkKeys :: Monad m => Response -> m [Text]
-mkKeys (ResponseSuccess response) = let mbKeys = exact =<< ("fields" `M.lookup` response)
-                                    in pure $ fromMaybe [] mbKeys
-mkKeys x = mkFailure x
-
-mkRecord :: [Text] -> Response -> Record
-mkRecord keys = M.fromList . zip keys . recsList
+-- |Gets result from obtained record
+at :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m a
+at record key = case M.lookup key record of
+                  Just x  -> liftE $ withExceptT WrongMessageFormat (exact x)
+                  Nothing -> throwError $ RecordHasNoKey key

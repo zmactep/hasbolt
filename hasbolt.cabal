@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.3.6
+version:             0.1.4.0
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -39,7 +39,6 @@ library
   other-modules:       Database.Bolt.Value.Type
                      , Database.Bolt.Value.Helpers
                      , Database.Bolt.Value.Instances
-                     , Database.Bolt.Value.Structure
                      , Database.Bolt.Connection.Connection
                      , Database.Bolt.Connection.Type
                      , Database.Bolt.Connection.Instances

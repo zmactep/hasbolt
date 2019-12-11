@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Database.Bolt.Connection.Instances where
@@ -8,6 +9,7 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
+import           Control.Monad.Except           (MonadError (..))
 import           Data.Map.Strict                (Map, fromList, empty, (!))
 import           Data.Text                      (Text)
 
@@ -25,7 +27,7 @@ instance FromStructure Response where
     | signature == sigRecs = pure $ ResponseRecord (removeExtList fields)
     | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
     | signature == sigFail = ResponseFailure <$> extractMap (head fields)
-    | otherwise            = fail "Not a Response value"
+    | otherwise            = throwError $ Not "Response" 
     where removeExtList :: [Value] -> [Value]
           removeExtList [L x] = x
           removeExtList _     = error "Record must contain only a singleton list"
@@ -67,13 +69,13 @@ tokenMap at = fromList [ ("scheme",      T $ scheme at)
                        , ("credentials", T $ credentials at)
                        ]
 
-extractMap :: Monad m => Value -> m (Map Text Value)
+extractMap :: MonadError UnpackError m => Value -> m (Map Text Value)
 extractMap (M mp) = pure mp
-extractMap _      = fail "Not a Dict value"
+extractMap _      = throwError NotDict
 
-mkFailure :: Monad m => Response -> m a
+mkFailure :: Response -> ResponseError
 mkFailure ResponseFailure{..} =
   let (T code) = failMap ! "code"
       (T msg)  = failMap ! "message"
-  in fail $ "code: " ++ show code ++ ", message: " ++ show msg
-mkFailure _ = fail "Unknown error"
+  in  KnownResponseFailure code msg
+mkFailure _ = UnknownResponseFailure

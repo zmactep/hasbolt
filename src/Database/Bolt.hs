@@ -1,12 +1,13 @@
 module Database.Bolt
     ( BoltActionT
+    , BoltError (..), UnpackError (..)
     , connect, close, reset
-    , run, queryP, query, queryP_, query_
+    , run, runE, queryP, query, queryP_, query_
     , transact
     , (=:), props
     , Pipe
     , BoltCfg (..)
-    , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), at
+    , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), exact, exactMaybe, at
     , Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 
@@ -16,7 +17,6 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Record
 import           Database.Bolt.Transaction
 import           Database.Bolt.Value.Instances ()
-import           Database.Bolt.Value.Structure ()
 import           Database.Bolt.Value.Type
 
 import           Data.Text                     (Text)
