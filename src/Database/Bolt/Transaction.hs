@@ -4,7 +4,7 @@ module Database.Bolt.Transaction
   ) where
 
 import           Control.Monad                  ( void )
-import           Control.Monad.IO.Class         ( MonadIO(..) )
+import           Control.Monad.Trans            ( MonadIO(..) )
 import           Control.Monad.Except           ( MonadError(..) )
 
 import           Database.Bolt.Connection       ( BoltActionT

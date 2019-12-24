@@ -10,6 +10,7 @@ import           Control.Monad.State       (MonadState (..), StateT (..), evalSt
 import           Control.Monad.Except      (MonadError (..), ExceptT, runExceptT)
 import           Data.ByteString           (ByteString)
 import           Data.Map.Strict           (Map, fromList)
+import           Data.Monoid               ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T (unpack, pack)
 import           Data.Word                 (Word8)

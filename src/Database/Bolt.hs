@@ -21,7 +21,7 @@ import           Database.Bolt.Value.Type
 
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (Map)
-import           Control.Monad.IO.Class        (MonadIO)
+import           Control.Monad.Trans           (MonadIO)
 
 -- |Runs Cypher query and returns list of obtained 'Record's. Strict version
 query :: MonadIO m => Text -> BoltActionT m [Record]
