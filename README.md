@@ -2,6 +2,7 @@ HasBOLT
 =======
 
 [![Travis](https://img.shields.io/travis/zmactep/hasbolt.svg)](https://travis-ci.org/zmactep/hasbolt)
+[![GitHub Build](https://github.com/zmactep/hasbolt/workflows/build/badge.svg)](https://github.com/zmactep/hasbolt/actions?query=workflow%3A%22build%22)
 [![hackage](https://img.shields.io/hackage/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
 [![hackage-deps](https://img.shields.io/hackage-deps/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
 
