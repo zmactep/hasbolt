@@ -68,7 +68,7 @@ typoInRequest name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTA
                         nodes <- forM toms' $ \record -> record `at` "tom"
                         forM nodes $ \node -> nodeProps node `at` "name"
 
--- 'RecordHasNoKey' is throwned in case of a wrong key usage in 'at'.
+-- 'RecordHasNoKey' is thrown in case of a wrong key usage in 'at'.
 typoInField :: Text -> BoltActionT IO [Text]
 typoInField name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN tom" 
                                       (props ["name" =: name])
