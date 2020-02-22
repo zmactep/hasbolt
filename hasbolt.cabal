@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.4.1
+version:             0.1.4.2
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -80,11 +80,11 @@ test-suite hasbolt-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       Hex
   build-depends:       base >= 4.8 && < 5
                      , hasbolt
                      , hspec >= 2.4.1 && < 2.8
                      , QuickCheck >= 2.9 && < 2.14
-                     , hex
                      , text
                      , containers
                      , bytestring
