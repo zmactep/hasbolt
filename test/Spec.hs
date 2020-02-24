@@ -3,15 +3,14 @@
 import           Control.Applicative      ((<$>))
 import           Data.ByteString          (ByteString)
 import           Data.ByteString.Lazy     (fromStrict, toStrict)
-import           Data.Hex
-import           Data.Map                 (Map (..))
+import           Hex
+import           Data.Map                 (Map)
 import qualified Data.Map                 as M (empty, fromList)
 import           Data.Text                (Text)
 import qualified Data.Text                as T (pack)
 import           Test.Hspec
-import           Test.QuickCheck
 
-import Database.Bolt
+import Database.Bolt ()
 import Database.Bolt.Serialization
 
 main :: IO ()
