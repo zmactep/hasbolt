@@ -1,5 +1,6 @@
+{-# LANGUAGE CPP                  #-}
+{-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE FlexibleInstances #-}
 
 
 {-
@@ -12,13 +13,16 @@ module Hex (Hex (..)) where
 import           Control.Monad
 import qualified Data.ByteString.Char8      as B
 import qualified Data.ByteString.Lazy.Char8 as L
+#if !MIN_VERSION_base(4, 13, 0)
+import           Control.Monad.Fail       (MonadFail)
+#endif
 
 -- | Convert strings into hexadecimal and back.
 class Hex t where
     -- | Convert string into hexadecimal.
     hex   :: t -> t
     -- | Convert from hexadecimal and fail on invalid input.
-    unhex :: Monad m => t -> m t
+    unhex :: MonadFail m => t -> m t
 
 
 instance Hex String where
@@ -33,7 +37,7 @@ instance Hex String where
     unhex [_]      = fail "Non-even length"
 
 
-c :: Monad m => Char -> m Int
+c :: MonadFail m => Char -> m Int
 c '0' = return 0
 c '1' = return 1
 c '2' = return 2
