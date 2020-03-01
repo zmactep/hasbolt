@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 import           Control.Applicative      ((<$>))
@@ -9,6 +10,9 @@ import qualified Data.Map                 as M (empty, fromList)
 import           Data.Text                (Text)
 import qualified Data.Text                as T (pack)
 import           Test.Hspec
+#if !MIN_VERSION_base(4, 13, 0)
+import           Control.Monad.Fail       (MonadFail)
+#endif
 
 import Database.Bolt ()
 import Database.Bolt.Serialization
@@ -89,5 +93,5 @@ packStreamTests =
     it "packs () correct" $
       hex (pack ()) `shouldBe` "C0"
 
-prepareData :: Monad m => ByteString -> m ByteString
+prepareData :: MonadFail m => ByteString -> m ByteString
 prepareData = (toStrict <$>) . unhex . fromStrict
