@@ -77,6 +77,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
                        , password      :: Text    -- ^Neo4j password
                        , secure        :: Bool    -- ^Use TLS or not
                        }
+  deriving (Eq, Show, Read)
 
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
