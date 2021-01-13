@@ -17,26 +17,26 @@ import           Data.ByteString                     (ByteString)
 import qualified Data.ByteString                     as B (concat, length, null,
                                                            splitAt)
 import           Data.Word                           (Word16)
-import           Network.Connection                  (Connection)
+import           GHC.Stack                           (HasCallStack)
 
 type MonadPipe m = (MonadIO m, MonadError BoltError m)
 
 -- |Creates new 'Pipe' instance to use all requests through
-connect :: MonadIO m => BoltCfg -> m Pipe
+connect :: MonadIO m => HasCallStack => BoltCfg -> m Pipe
 connect = makeIO connect'
   where
     connect' :: MonadPipe m => BoltCfg -> m Pipe
-    connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg)
+    connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
                        let pipe = Pipe conn (maxChunkSize bcfg)
                        handshake pipe bcfg
                        pure pipe
 
 -- |Closes 'Pipe'
-close :: MonadIO m => Pipe -> m ()
+close :: MonadIO m => HasCallStack => Pipe -> m ()
 close = C.close . connection
 
 -- |Resets current sessions
-reset :: MonadIO m => Pipe -> m ()
+reset :: MonadIO m => HasCallStack => Pipe -> m ()
 reset = makeIO reset'
   where
     reset' :: MonadPipe m => Pipe -> m ()
@@ -46,7 +46,7 @@ reset = makeIO reset'
                        throwError ResetFailed
 
 -- Helper to make pipe operations in IO
-makeIO :: MonadIO m => (a -> ExceptT BoltError m b) -> a -> m b
+makeIO :: MonadIO m => HasCallStack => (a -> ExceptT BoltError m b) -> a -> m b
 makeIO action arg = do actionIO <- runExceptT (action arg)
                        case actionIO of
                          Right x -> pure x
@@ -54,13 +54,13 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
 
 -- = Internal interfaces
 
-ackFailure :: MonadPipe m => Pipe -> m ()
+ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
 
-discardAll :: MonadPipe m => Pipe -> m ()
+discardAll :: MonadPipe m => HasCallStack => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
-flush :: MonadPipe m => Pipe -> Request -> m ()
+flush :: MonadPipe m => HasCallStack => Pipe -> Request -> m ()
 flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
                         C.send conn terminal
   where bs        = pack $ toStructure request
@@ -73,7 +73,7 @@ flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
         mkChunk chunk = let size = fromIntegral (B.length chunk) :: Word16
                         in  [encodeStrict size, chunk]
 
-fetch :: MonadPipe m => Pipe -> m Response
+fetch :: MonadPipe m => HasCallStack => Pipe -> m Response
 fetch pipe = do bs <- B.concat <$> chunks
                 response <- flip unpackAction bs $ unpackT >>= fromStructure
                 either (throwError . WrongMessageFormat) pure response
@@ -89,7 +89,7 @@ fetch pipe = do bs <- B.concat <$> chunks
 
 -- Helper functions
 
-handshake :: MonadPipe m => Pipe -> BoltCfg -> m ()
+handshake :: MonadPipe m => HasCallStack => Pipe -> BoltCfg -> m ()
 handshake pipe bcfg = do let conn = connection pipe
                          C.send conn (encodeStrict $ magic bcfg)
                          C.send conn (boltVersionProposal bcfg)
@@ -104,7 +104,7 @@ handshake pipe bcfg = do let conn = connection pipe
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
 
-recvChunk :: MonadPipe m => Connection -> Word16 -> m ByteString
+recvChunk :: MonadPipe m => HasCallStack => BConnection -> Word16 -> m ByteString
 recvChunk conn size = B.concat <$> helper (fromIntegral size)
   where helper :: MonadPipe m => Int -> m [ByteString]
         helper 0  = pure []
