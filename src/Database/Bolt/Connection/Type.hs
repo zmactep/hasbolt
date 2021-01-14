@@ -96,14 +96,15 @@ instance Default BoltCfg where
                 , secure        = False
                 }
 
-data BConnection
-  = BConnection
+data ConnectionWithTimeout
+  = ConnectionWithTimeout
       { bcConn        :: !Connection
       , bcTimeoutUsec :: !Int
+        -- ^ Timeout in microseconds
       }
 
-data Pipe = Pipe { connection :: BConnection -- ^Driver connection socket
-                 , mcs        :: Word16      -- ^Driver maximum chunk size of request
+data Pipe = Pipe { connection :: ConnectionWithTimeout -- ^Driver connection socket
+                 , mcs        :: Word16                -- ^Driver maximum chunk size of request
                  }
 
 data AuthToken = AuthToken { scheme      :: Text

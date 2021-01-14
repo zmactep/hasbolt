@@ -7,7 +7,7 @@ import Control.Monad                 (forM_, when)
 import Control.Monad.Trans           (MonadIO (..))
 import Data.ByteString               (ByteString, null)
 import Data.Default                  (Default (..))
-import Database.Bolt.Connection.Type (BConnection (..), BoltError (..))
+import Database.Bolt.Connection.Type (BoltError (..), ConnectionWithTimeout (..))
 import GHC.Stack                     (HasCallStack, withFrozenCallStack)
 import Network.Connection            (ConnectionParams (..), connectTo, connectionClose,
                                       connectionGetExact, connectionPut, connectionSetSecure,
@@ -26,7 +26,7 @@ connect
   -> PortNumber
   -> Int
      -- ^ Connection and read timeout in seconds
-  -> m BConnection
+  -> m ConnectionWithTimeout
 connect secure host port timeSec = liftIO $ do
     let timeUsec = 1000000 * timeSec
     ctx  <- initConnectionContext
@@ -38,23 +38,23 @@ connect secure host port timeSec = liftIO $ do
         , connectionUseSocks  = Nothing
         }
     when secure $ connectionSetSecure ctx conn def
-    pure $ BConnection conn timeUsec
+    pure $ ConnectionWithTimeout conn timeUsec
 
-close :: MonadIO m => HasCallStack => BConnection -> m ()
-close BConnection{..} = liftIO $ timeoutThrow bcTimeoutUsec $ connectionClose bcConn
+close :: MonadIO m => HasCallStack => ConnectionWithTimeout -> m ()
+close ConnectionWithTimeout{..} = liftIO $ timeoutThrow bcTimeoutUsec $ connectionClose bcConn
 
-recv :: MonadIO m => HasCallStack => BConnection -> Int -> m (Maybe ByteString)
-recv BConnection{..} = liftIO . (filterMaybe (not . null) <$>) . timeoutThrow bcTimeoutUsec . connectionGetExact bcConn
+recv :: MonadIO m => HasCallStack => ConnectionWithTimeout -> Int -> m (Maybe ByteString)
+recv ConnectionWithTimeout{..} = liftIO . (filterMaybe (not . null) <$>) . timeoutThrow bcTimeoutUsec . connectionGetExact bcConn
   where
     filterMaybe :: (a -> Bool) -> a -> Maybe a
     filterMaybe p x | p x       = Just x
                     | otherwise = Nothing
 
-send :: MonadIO m => HasCallStack => BConnection -> ByteString -> m ()
-send BConnection{..} = liftIO . timeoutThrow bcTimeoutUsec . connectionPut bcConn
+send :: MonadIO m => HasCallStack => ConnectionWithTimeout -> ByteString -> m ()
+send ConnectionWithTimeout{..} = liftIO . timeoutThrow bcTimeoutUsec . connectionPut bcConn
 
-sendMany :: MonadIO m => HasCallStack => BConnection -> [ByteString] -> m ()
-sendMany conn@BConnection{..} chunks = liftIO $ forM_ chunks $ timeoutThrow bcTimeoutUsec . send conn
+sendMany :: MonadIO m => HasCallStack => ConnectionWithTimeout -> [ByteString] -> m ()
+sendMany conn@ConnectionWithTimeout{..} chunks = liftIO $ forM_ chunks $ timeoutThrow bcTimeoutUsec . send conn
 
 timeoutThrow :: HasCallStack => Int -> IO a -> IO a
 timeoutThrow timeUsec action = withFrozenCallStack $ do

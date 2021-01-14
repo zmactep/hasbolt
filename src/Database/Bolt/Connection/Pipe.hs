@@ -104,7 +104,7 @@ handshake pipe bcfg = do let conn = connection pipe
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
 
-recvChunk :: MonadPipe m => HasCallStack => BConnection -> Word16 -> m ByteString
+recvChunk :: MonadPipe m => HasCallStack => ConnectionWithTimeout -> Word16 -> m ByteString
 recvChunk conn size = B.concat <$> helper (fromIntegral size)
   where helper :: MonadPipe m => Int -> m [ByteString]
         helper 0  = pure []
