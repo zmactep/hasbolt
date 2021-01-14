@@ -41,20 +41,20 @@ connect secure host port timeSec = liftIO $ do
     pure $ ConnectionWithTimeout conn timeUsec
 
 close :: MonadIO m => HasCallStack => ConnectionWithTimeout -> m ()
-close ConnectionWithTimeout{..} = liftIO $ timeoutThrow bcTimeoutUsec $ connectionClose bcConn
+close ConnectionWithTimeout{..} = liftIO $ timeoutThrow cwtTimeoutUsec $ connectionClose cwtConnection
 
 recv :: MonadIO m => HasCallStack => ConnectionWithTimeout -> Int -> m (Maybe ByteString)
-recv ConnectionWithTimeout{..} = liftIO . (filterMaybe (not . null) <$>) . timeoutThrow bcTimeoutUsec . connectionGetExact bcConn
+recv ConnectionWithTimeout{..} = liftIO . (filterMaybe (not . null) <$>) . timeoutThrow cwtTimeoutUsec . connectionGetExact cwtConnection
   where
     filterMaybe :: (a -> Bool) -> a -> Maybe a
     filterMaybe p x | p x       = Just x
                     | otherwise = Nothing
 
 send :: MonadIO m => HasCallStack => ConnectionWithTimeout -> ByteString -> m ()
-send ConnectionWithTimeout{..} = liftIO . timeoutThrow bcTimeoutUsec . connectionPut bcConn
+send ConnectionWithTimeout{..} = liftIO . timeoutThrow cwtTimeoutUsec . connectionPut cwtConnection
 
 sendMany :: MonadIO m => HasCallStack => ConnectionWithTimeout -> [ByteString] -> m ()
-sendMany conn@ConnectionWithTimeout{..} chunks = liftIO $ forM_ chunks $ timeoutThrow bcTimeoutUsec . send conn
+sendMany conn@ConnectionWithTimeout{..} chunks = liftIO $ forM_ chunks $ timeoutThrow cwtTimeoutUsec . send conn
 
 timeoutThrow :: HasCallStack => Int -> IO a -> IO a
 timeoutThrow timeUsec action = withFrozenCallStack $ do

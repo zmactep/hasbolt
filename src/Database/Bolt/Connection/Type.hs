@@ -98,8 +98,8 @@ instance Default BoltCfg where
 
 data ConnectionWithTimeout
   = ConnectionWithTimeout
-      { bcConn        :: !Connection
-      , bcTimeoutUsec :: !Int
+      { cwtConnection  :: !Connection
+      , cwtTimeoutUsec :: !Int
         -- ^ Timeout in microseconds
       }
 
