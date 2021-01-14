@@ -1,20 +1,21 @@
 {-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Connection where
 
-import Control.Applicative           (pure, (<$>))
-import Control.Exception             (throwIO)
-import Control.Monad                 (forM_, when)
-import Control.Monad.Trans           (MonadIO (..))
-import Data.ByteString               (ByteString, null)
-import Data.Default                  (Default (..))
-import Database.Bolt.Connection.Type (BoltError (..), ConnectionWithTimeout (..))
-import GHC.Stack                     (HasCallStack, withFrozenCallStack)
-import Network.Connection            (ConnectionParams (..), connectTo, connectionClose,
-                                      connectionGetExact, connectionPut, connectionSetSecure,
-                                      initConnectionContext)
-import Network.Socket                (PortNumber)
-import Prelude                       hiding (null)
-import System.Timeout                (timeout)
+import           Control.Applicative    (pure, (<$>))
+import           Control.Exception      (throwIO)
+import           Control.Monad          (forM_, when)
+import           Control.Monad.Trans    (MonadIO (..))
+import           Data.ByteString        (ByteString, null)
+import           Data.Default           (Default (..))
+import           GHC.Stack              (HasCallStack, withFrozenCallStack)
+import           Network.Socket         (PortNumber)
+import           Network.Connection     (ConnectionParams (..), connectTo, connectionClose,
+                                        connectionGetExact, connectionPut, connectionSetSecure,
+                                        initConnectionContext)
+import           Prelude                hiding (null)
+import           System.Timeout         (timeout)
+
+import           Database.Bolt.Connection.Type (BoltError (..), ConnectionWithTimeout (..))
 
 connect
   :: MonadIO m
@@ -28,17 +29,16 @@ connect
      -- ^ Connection and read timeout in seconds
   -> m ConnectionWithTimeout
 connect secure host port timeSec = liftIO $ do
-    let timeUsec = 1000000 * timeSec
-    ctx  <- initConnectionContext
-    conn <- timeoutThrow timeUsec $
-      connectTo ctx ConnectionParams
-        { connectionHostname  = host
-        , connectionPort      = port
-        , connectionUseSecure = Nothing
-        , connectionUseSocks  = Nothing
-        }
-    when secure $ connectionSetSecure ctx conn def
-    pure $ ConnectionWithTimeout conn timeUsec
+                                      let timeUsec = 1000000 * timeSec
+                                      ctx  <- initConnectionContext
+                                      conn <- timeoutThrow timeUsec $
+                                              connectTo ctx ConnectionParams { connectionHostname  = host
+                                                                             , connectionPort      = port
+                                                                             , connectionUseSecure = Nothing
+                                                                             , connectionUseSocks  = Nothing
+                                                                             }
+                                      when secure $ connectionSetSecure ctx conn def
+                                      pure $ ConnectionWithTimeout conn timeUsec
 
 close :: MonadIO m => HasCallStack => ConnectionWithTimeout -> m ()
 close ConnectionWithTimeout{..} = liftIO $ timeoutThrow cwtTimeoutUsec $ connectionClose cwtConnection
