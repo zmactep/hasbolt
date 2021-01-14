@@ -98,8 +98,8 @@ instance Default BoltCfg where
 
 data BConnection
   = BConnection
-      { bcConn    :: !Connection
-      , bcTimeout :: !Int
+      { bcConn        :: !Connection
+      , bcTimeoutUsec :: !Int
       }
 
 data Pipe = Pipe { connection :: BConnection -- ^Driver connection socket
