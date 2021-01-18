@@ -20,57 +20,58 @@ import           Database.Bolt.Record
 
 import           Control.Exception             (throwIO)
 import           Control.Monad                 (void)
-import           Control.Monad.Trans           (MonadIO (..))
-import           Control.Monad.Reader          (MonadReader (..), runReaderT)
 import           Control.Monad.Except          (MonadError (..), runExceptT)
-import           Data.Text                     (Text)
+import           Control.Monad.Reader          (MonadReader (..), runReaderT)
+import           Control.Monad.Trans           (MonadIO (..))
 import           Data.Map.Strict               (Map, empty, fromList)
+import           Data.Text                     (Text)
+import           GHC.Stack                     (HasCallStack)
 
 import           System.IO.Unsafe              (unsafeInterleaveIO)
 
 -- |Runs BOLT action on selected pipe
-runE :: MonadIO m => Pipe -> BoltActionT m a -> m (Either BoltError a)
-runE pipe action = runExceptT (runReaderT (runBoltActionT action) pipe) 
+runE :: MonadIO m => HasCallStack => Pipe -> BoltActionT m a -> m (Either BoltError a)
+runE pipe action = runExceptT (runReaderT (runBoltActionT action) pipe)
 
 -- |Runs BOLT action on selected pipe (with errors throw)
-run :: MonadIO m => Pipe -> BoltActionT m a -> m a
+run :: MonadIO m => HasCallStack => Pipe -> BoltActionT m a -> m a
 run pipe action = do result <- runE pipe action
                      case result of
                        Right x -> pure x
                        Left r  -> liftIO $ throwIO r
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's. Lazy version
-queryP :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
+queryP :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m [Record]
 queryP = querySL False
 
 -- |Runs Cypher query and returns list of obtained 'Record's. Lazy version
-query :: MonadIO m => Text -> BoltActionT m [Record]
+query :: MonadIO m => HasCallStack => Text -> BoltActionT m [Record]
 query cypher = queryP cypher empty
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's. Strict version
-queryP' :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
+queryP' :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m [Record]
 queryP' = querySL True
 
 -- |Runs Cypher query and returns list of obtained 'Record's. Strict version
-query' :: MonadIO m => Text -> BoltActionT m [Record]
+query' :: MonadIO m => HasCallStack => Text -> BoltActionT m [Record]
 query' cypher = queryP' cypher empty
 
 -- |Runs Cypher query with parameters and ignores response
-queryP_ :: MonadIO m => Text -> Map Text Value -> BoltActionT m ()
+queryP_ :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m ()
 queryP_ cypher params = do void $ sendRequest cypher params
                            ask >>= liftE . discardAll
 
 -- |Runs Cypher query and ignores response
-query_ :: MonadIO m => Text -> BoltActionT m ()
+query_ :: MonadIO m => HasCallStack => Text -> BoltActionT m ()
 query_ cypher = queryP_ cypher empty
 
 -- Helper functions
 
-querySL :: MonadIO m => Bool -> Text -> Map Text Value -> BoltActionT m [Record]
+querySL :: MonadIO m => HasCallStack => Bool -> Text -> Map Text Value -> BoltActionT m [Record]
 querySL strict cypher params = do keys <- pullKeys cypher params
                                   pullRecords strict keys
 
-pullKeys :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Text]
+pullKeys :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m [Text]
 pullKeys cypher params = do pipe <- ask
                             status <- sendRequest cypher params
                             liftE $ flush pipe RequestPullAll
@@ -80,7 +81,7 @@ pullKeys cypher params = do pipe <- ask
     mkKeys (ResponseSuccess response) = response `at` "fields" `catchError` \(RecordHasNoKey _) -> pure []
     mkKeys x                          = throwError $ ResponseError (mkFailure x)
 
-pullRecords :: MonadIO m => Bool -> [Text] -> BoltActionT m [Record]
+pullRecords :: MonadIO m => HasCallStack => Bool -> [Text] -> BoltActionT m [Record]
 pullRecords strict keys = do pipe <- ask
                              resp <- liftE $ fetch pipe
                              cases resp
@@ -101,7 +102,7 @@ pullRecords strict keys = do pipe <- ask
         pure (record:rest)
 
 -- |Sends request to database and makes an action
-sendRequest :: MonadIO m => Text -> Map Text Value -> BoltActionT m Response
+sendRequest :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m Response
 sendRequest cypher params =
   do pipe <- ask
      liftE $ do

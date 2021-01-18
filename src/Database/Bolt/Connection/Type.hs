@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -12,10 +13,11 @@ import           Control.Monad.Reader            (MonadReader (..), ReaderT)
 import           Control.Monad.Except            (MonadError (..), ExceptT (..))
 
 import           Data.Default                    (Default (..))
-import           Data.Monoid                     ((<>))
 import           Data.Map.Strict                 (Map)
+import           Data.Monoid                     ((<>))
 import           Data.Text                       (Text, unpack)
 import           Data.Word                       (Word16, Word32)
+import           GHC.Stack                       (HasCallStack, callStack, prettyCallStack)
 import           Network.Connection              (Connection)
 
 
@@ -38,6 +40,7 @@ data BoltError = UnsupportedServerVersion
                | ResponseError ResponseError
                | RecordHasNoKey Text
                | NonHasboltError SomeException
+               | HasCallStack => TimeOut
 
 instance Show BoltError where
   show UnsupportedServerVersion = "Cannot connect: unsupported server version"
@@ -49,6 +52,7 @@ instance Show BoltError where
   show (ResponseError re)       = show re
   show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
   show (NonHasboltError msg)    = "User error: " <> show msg
+  show TimeOut                  = "Operation timeout\n" <> prettyCallStack callStack
 
 instance Exception BoltError
 
@@ -70,7 +74,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
                        , version       :: Word32  -- ^'00000001' value
                        , userAgent     :: Text    -- ^Driver user agent
                        , maxChunkSize  :: Word16  -- ^Maximum chunk size of request
-                       , socketTimeout :: Int     -- ^Driver socket timeout
+                       , socketTimeout :: Int     -- ^Driver socket timeout in seconds
                        , host          :: String  -- ^Neo4j server hostname
                        , port          :: Int     -- ^Neo4j server port
                        , user          :: Text    -- ^Neo4j user
@@ -92,8 +96,15 @@ instance Default BoltCfg where
                 , secure        = False
                 }
 
-data Pipe = Pipe { connection :: Connection -- ^Driver connection socket
-                 , mcs        :: Word16     -- ^Driver maximum chunk size of request
+data ConnectionWithTimeout
+  = ConnectionWithTimeout
+      { cwtConnection  :: !Connection
+      , cwtTimeoutUsec :: !Int
+        -- ^ Timeout in microseconds
+      }
+
+data Pipe = Pipe { connection :: ConnectionWithTimeout -- ^Driver connection socket
+                 , mcs        :: Word16                -- ^Driver maximum chunk size of request
                  }
 
 data AuthToken = AuthToken { scheme      :: Text
@@ -101,7 +112,7 @@ data AuthToken = AuthToken { scheme      :: Text
                            , credentials :: Text
                            }
   deriving (Eq, Show)
-  
+
 data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseRecord  { recsList  :: [Value] }
               | ResponseIgnored { ignoreMap :: Map Text Value }
