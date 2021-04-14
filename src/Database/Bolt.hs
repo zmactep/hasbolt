@@ -8,7 +8,7 @@ module Database.Bolt
     , Pipe
     , BoltCfg (..)
     , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), exact, exactMaybe, at
-    , Node (..), Relationship (..), URelationship (..), Path (..)
+    , maybeAt, Node (..), Relationship (..), URelationship (..), Path (..)
     ) where
 
 import           Database.Bolt.Connection hiding (query, queryP)

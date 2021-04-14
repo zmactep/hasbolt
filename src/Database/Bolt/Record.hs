@@ -82,3 +82,9 @@ at :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m a
 at record key = case M.lookup key record of
                   Just x  -> liftE $ withExceptT WrongMessageFormat (exact x)
                   Nothing -> throwError $ RecordHasNoKey key
+
+-- |Possibly gets result from obtained record
+maybeAt :: (Monad m, RecordValue a) => Record -> Text -> BoltActionT m (Maybe a)
+maybeAt record key = case M.lookup key record of
+                  Just x  -> liftE $ withExceptT WrongMessageFormat (exact x)
+                  Nothing -> return Nothing
