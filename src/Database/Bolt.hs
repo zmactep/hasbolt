@@ -22,11 +22,12 @@ import           Database.Bolt.Value.Type
 import           Data.Text                     (Text)
 import           Data.Map.Strict               (Map)
 import           Control.Monad.Trans           (MonadIO)
+import           GHC.Stack                     (HasCallStack)
 
 -- |Runs Cypher query and returns list of obtained 'Record's. Strict version
-query :: MonadIO m => Text -> BoltActionT m [Record]
+query :: MonadIO m => HasCallStack => Text -> BoltActionT m [Record]
 query = query'
 
 -- |Runs Cypher query with parameters and returns list of obtained 'Record's. Strict version
-queryP :: MonadIO m => Text -> Map Text Value -> BoltActionT m [Record]
+queryP :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m [Record]
 queryP = queryP'
