@@ -27,13 +27,14 @@ connect = makeIO connect'
   where
     connect' :: MonadPipe m => BoltCfg -> m Pipe
     connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
-                       let pipe = Pipe conn (maxChunkSize bcfg)
+                       let pipe = Pipe conn (maxChunkSize bcfg) (version bcfg, version_minor bcfg)
                        handshake pipe bcfg
                        pure pipe
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close = C.close . connection
+close pipe = do when (fst (version_mm pipe) >= 3) $ makeIO (`flush` RequestGoodbye) pipe
+                C.close $ connection pipe
 
 -- |Resets current sessions
 reset :: MonadIO m => HasCallStack => Pipe -> m ()
@@ -55,7 +56,8 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
 -- = Internal interfaces
 
 ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
-ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
+ackFailure pipe = if fst (version_mm pipe) < 3 then flush pipe RequestAckFailure >> void (fetch pipe)
+                                               else flush pipe RequestReset
 
 discardAll :: MonadPipe m => HasCallStack => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)

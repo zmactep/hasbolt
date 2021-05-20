@@ -71,7 +71,8 @@ liftE = BoltActionT . lift
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
-                       , version       :: Word32  -- ^'00000001' value
+                       , version       :: Word32  -- ^Major version number (e.g. '00000004' for 4.1)
+                       , version_minor :: Word32  -- ^Minor version number (e.g. '00000001' for 4.1)
                        , userAgent     :: Text    -- ^Driver user agent
                        , maxChunkSize  :: Word16  -- ^Maximum chunk size of request
                        , socketTimeout :: Int     -- ^Driver socket timeout in seconds
@@ -85,8 +86,9 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
 
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
-                , version       = 1
-                , userAgent     = "hasbolt/1.4"
+                , version       = 4
+                , version_minor = 0
+                , userAgent     = "hasbolt/2.0"
                 , maxChunkSize  = 65535
                 , socketTimeout = 5
                 , host          = "127.0.0.1"
@@ -105,6 +107,7 @@ data ConnectionWithTimeout
 
 data Pipe = Pipe { connection :: ConnectionWithTimeout -- ^Driver connection socket
                  , mcs        :: Word16                -- ^Driver maximum chunk size of request
+                 , version_mm :: (Word32, Word32)      -- ^Connection version (major, minor)
                  }
 
 data AuthToken = AuthToken { scheme      :: Text
@@ -119,8 +122,9 @@ data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseFailure { failMap   :: Map Text Value }
   deriving (Eq, Show)
 
-data Request = RequestInit { agent :: Text
-                           , token :: AuthToken
+data Request = RequestInit { agent   :: Text
+                           , token   :: AuthToken
+                           , isHello :: Bool
                            }
              | RequestRun  { statement  :: Text
                            , parameters :: Map Text Value
@@ -129,4 +133,5 @@ data Request = RequestInit { agent :: Text
              | RequestReset
              | RequestDiscardAll
              | RequestPullAll
+             | RequestGoodbye
   deriving (Eq, Show)

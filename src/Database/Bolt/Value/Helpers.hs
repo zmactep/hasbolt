@@ -176,6 +176,9 @@ sigDAll = 47
 sigPAll :: Word8
 sigPAll = 63
 
+sigGBye :: Word8 
+sigGBye = 2
+
 -- == BOLT responses signatures
 
 sigSucc :: Word8
