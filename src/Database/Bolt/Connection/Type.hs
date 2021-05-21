@@ -86,7 +86,7 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
 
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
-                , version       = 4
+                , version       = 3
                 , userAgent     = "hasbolt/1.5"
                 , maxChunkSize  = 65535
                 , socketTimeout = 5
