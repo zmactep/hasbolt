@@ -4,6 +4,7 @@ module Database.Bolt.Connection.Pipe where
 
 import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
+import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
 import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
@@ -27,13 +28,13 @@ connect = makeIO connect'
   where
     connect' :: MonadPipe m => BoltCfg -> m Pipe
     connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
-                       let pipe = Pipe conn (maxChunkSize bcfg) (version bcfg, version_minor bcfg)
+                       let pipe = Pipe conn (maxChunkSize bcfg) (version bcfg)
                        handshake pipe bcfg
                        pure pipe
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close pipe = do when (fst (version_mm pipe) >= 3) $ makeIO (`flush` RequestGoodbye) pipe
+close pipe = do when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
                 C.close $ connection pipe
 
 -- |Resets current sessions
@@ -56,8 +57,8 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
 -- = Internal interfaces
 
 ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
-ackFailure pipe = if fst (version_mm pipe) < 3 then flush pipe RequestAckFailure >> void (fetch pipe)
-                                               else flush pipe RequestReset
+ackFailure pipe = if isNewVersion (pipe_version pipe) then flush pipe RequestReset
+                                                      else flush pipe RequestAckFailure >> void (fetch pipe)
 
 discardAll :: MonadPipe m => HasCallStack => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)

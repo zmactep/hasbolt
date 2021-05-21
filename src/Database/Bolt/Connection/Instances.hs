@@ -56,11 +56,11 @@ isRecord _                  = False
 
 createInit :: BoltCfg -> Request
 createInit BoltCfg{..} = RequestInit userAgent
-                                     AuthToken { scheme      = "basic"
+                                     AuthToken { scheme      = authType
                                                , principal   = user
                                                , credentials = password
                                                }
-                                     (version >= 3)
+                                     (isNewVersion version)
 
 createRun :: Text -> Request
 createRun stmt = RequestRun stmt empty

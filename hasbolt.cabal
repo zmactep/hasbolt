@@ -12,6 +12,8 @@ description:
   .
     -Cypher queries and responses
   .
+    -Transactions and error handling
+  .
     -Authentification
   .
     -TLS/SSL connection
