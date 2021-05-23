@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.4.5
+version:             0.1.5.0
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -12,11 +12,15 @@ description:
   .
     -Cypher queries and responses
   .
+    -Transactions and error handling
+  .
     -Authentification
   .
     -TLS/SSL connection
   .
-  The code was tested with neo4j versions 3.0 — 3.4 and GrapheneDB service
+    -Bolt protocol version 3 initial support
+  .
+  The code was tested with neo4j versions 3.0 — 3.5 and GrapheneDB service
 
 
 homepage:            https://github.com/zmactep/hasbolt#readme
@@ -83,7 +87,7 @@ test-suite hasbolt-test
   other-modules:       Hex
   build-depends:       base >= 4.8 && < 5
                      , hasbolt
-                     , hspec >= 2.4.1 && < 2.8
+                     , hspec >= 2.4.1 && < 2.9
                      , QuickCheck >= 2.9 && < 2.15
                      , text
                      , containers

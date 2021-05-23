@@ -10,16 +10,19 @@ import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
 import           Control.Monad.Except           (MonadError (..))
-import           Data.Map.Strict                (Map, fromList, empty, (!))
+import           Data.Map.Strict                (Map, insert, fromList, empty, (!))
 import           Data.Text                      (Text)
 
 instance ToStructure Request where
-  toStructure RequestInit{..} = Structure sigInit [T agent, M $ tokenMap token]
-  toStructure RequestRun{..}  = Structure sigRun [T statement, M parameters]
+  toStructure RequestInit{..}           = Structure sigInit $ if isHello then [M $ helloMap agent token]
+                                                                         else [T agent, M $ tokenMap token]
+  toStructure RequestRun{..}            = Structure sigRun [T statement, M parameters]
+  toStructure RequestRunV3{..}          = Structure sigRun [T statement, M parameters, M extra]
   toStructure RequestReset              = Structure sigReset []
   toStructure RequestAckFailure         = Structure sigAFail []
   toStructure RequestPullAll            = Structure sigPAll []
   toStructure RequestDiscardAll         = Structure sigDAll []
+  toStructure RequestGoodbye            = Structure sigGBye []
 
 instance FromStructure Response where
   fromStructure Structure{..}
@@ -54,19 +57,23 @@ isRecord _                  = False
 
 createInit :: BoltCfg -> Request
 createInit BoltCfg{..} = RequestInit userAgent
-                                     AuthToken { scheme      = "basic"
+                                     AuthToken { scheme      = authType
                                                , principal   = user
                                                , credentials = password
                                                }
+                                     (isNewVersion version)
 
 createRun :: Text -> Request
 createRun stmt = RequestRun stmt empty
 
 
+helloMap :: Text -> AuthToken  -> Map Text Value 
+helloMap a = insert "user_agent" (T a) . tokenMap
+
 tokenMap :: AuthToken -> Map Text Value
-tokenMap at = fromList [ ("scheme",      T $ scheme at)
-                       , ("principal",   T $ principal at)
-                       , ("credentials", T $ credentials at)
+tokenMap at = fromList [ "scheme"     =: scheme at
+                       , "principal"   =: principal at
+                       , "credentials" =: credentials at
                        ]
 
 extractMap :: MonadError UnpackError m => Value -> m (Map Text Value)

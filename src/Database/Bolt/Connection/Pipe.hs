@@ -1,9 +1,11 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Pipe where
 
 import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
+import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type
 import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
@@ -27,13 +29,15 @@ connect = makeIO connect'
   where
     connect' :: MonadPipe m => BoltCfg -> m Pipe
     connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
-                       let pipe = Pipe conn (maxChunkSize bcfg)
+                       let pipe = Pipe conn (maxChunkSize bcfg) (version bcfg)
                        handshake pipe bcfg
                        pure pipe
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close = C.close . connection
+close pipe = do liftIO $ print "Closed"
+                when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
+                C.close $ connection pipe
 
 -- |Resets current sessions
 reset :: MonadIO m => HasCallStack => Pipe -> m ()
@@ -53,6 +57,12 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
                          Left  e -> liftIO $ throwIO e
 
 -- = Internal interfaces
+
+-- |Processes error via ackFailure or reset
+processError :: MonadIO m => HasCallStack => Pipe -> m ()
+processError pipe@Pipe{..} = if isNewVersion pipe_version
+                               then reset pipe
+                               else makeIO ackFailure pipe
 
 ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)

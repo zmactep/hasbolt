@@ -14,7 +14,7 @@ import           Control.Monad.Except            (MonadError (..), ExceptT (..))
 
 import           Data.Default                    (Default (..))
 import           Data.Map.Strict                 (Map)
-import           Data.Monoid                     ((<>))
+import           Data.Monoid                     ()
 import           Data.Text                       (Text, unpack)
 import           Data.Word                       (Word16, Word32)
 import           GHC.Stack                       (HasCallStack, callStack, prettyCallStack)
@@ -71,12 +71,13 @@ liftE = BoltActionT . lift
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
-                       , version       :: Word32  -- ^'00000001' value
+                       , version       :: Word32  -- ^Major version number (e.g. '00000104' for 4.1)
                        , userAgent     :: Text    -- ^Driver user agent
                        , maxChunkSize  :: Word16  -- ^Maximum chunk size of request
                        , socketTimeout :: Int     -- ^Driver socket timeout in seconds
                        , host          :: String  -- ^Neo4j server hostname
                        , port          :: Int     -- ^Neo4j server port
+                       , authType      :: Text    -- ^Neo4j auth schema
                        , user          :: Text    -- ^Neo4j user
                        , password      :: Text    -- ^Neo4j password
                        , secure        :: Bool    -- ^Use TLS or not
@@ -85,12 +86,13 @@ data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
 
 instance Default BoltCfg where
   def = BoltCfg { magic         = 1616949271
-                , version       = 1
-                , userAgent     = "hasbolt/1.4"
+                , version       = 3
+                , userAgent     = "hasbolt/1.5"
                 , maxChunkSize  = 65535
                 , socketTimeout = 5
                 , host          = "127.0.0.1"
                 , port          = 7687
+                , authType      = "basic"
                 , user          = ""
                 , password      = ""
                 , secure        = False
@@ -103,8 +105,9 @@ data ConnectionWithTimeout
         -- ^ Timeout in microseconds
       }
 
-data Pipe = Pipe { connection :: ConnectionWithTimeout -- ^Driver connection socket
-                 , mcs        :: Word16                -- ^Driver maximum chunk size of request
+data Pipe = Pipe { connection   :: ConnectionWithTimeout -- ^Driver connection socket
+                 , mcs          :: Word16                -- ^Driver maximum chunk size of request
+                 , pipe_version :: Word32                -- ^Connection version 0000mnMJ
                  }
 
 data AuthToken = AuthToken { scheme      :: Text
@@ -119,14 +122,20 @@ data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseFailure { failMap   :: Map Text Value }
   deriving (Eq, Show)
 
-data Request = RequestInit { agent :: Text
-                           , token :: AuthToken
-                           }
-             | RequestRun  { statement  :: Text
-                           , parameters :: Map Text Value
-                           }
+data Request = RequestInit  { agent   :: Text
+                            , token   :: AuthToken
+                            , isHello :: Bool
+                            }
+             | RequestRun   { statement  :: Text
+                            , parameters :: Map Text Value
+                            }
+             | RequestRunV3 { statement  :: Text
+                            , parameters :: Map Text Value
+                            , extra      :: Map Text Value
+                            }
              | RequestAckFailure
              | RequestReset
              | RequestDiscardAll
              | RequestPullAll
+             | RequestGoodbye
   deriving (Eq, Show)

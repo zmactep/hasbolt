@@ -2,7 +2,7 @@ module Database.Bolt.Value.Helpers where
 
 import           Control.Applicative (liftA2, liftA3, pure)
 import           Data.Bits           ((.&.))
-import           Data.Word           (Word8)
+import           Data.Word           (Word8, Word32)
 
 -- = Checkers
 
@@ -56,6 +56,9 @@ isList = do x <- liftA2 (||) (== list8Code) (== list16Code)
 
 isStruct :: Word8 -> Bool
 isStruct = liftA3 (\x y z -> x || y || z) (== struct8Code) (== struct16Code) isTinyStruct
+
+isNewVersion :: Word32 -> Bool
+isNewVersion v = (v .&. 255) >= 3
 
 -- = Constants
 
@@ -175,6 +178,9 @@ sigDAll = 47
 
 sigPAll :: Word8
 sigPAll = 63
+
+sigGBye :: Word8 
+sigGBye = 2
 
 -- == BOLT responses signatures
 
