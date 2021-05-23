@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Pipe where
 
 import           Database.Bolt.Connection.Instances
@@ -34,7 +35,8 @@ connect = makeIO connect'
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close pipe = do when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
+close pipe = do liftIO $ print "Closed"
+                when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
                 C.close $ connection pipe
 
 -- |Resets current sessions
@@ -56,9 +58,14 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
 
 -- = Internal interfaces
 
+-- |Processes error via ackFailure or reset
+processError :: MonadIO m => HasCallStack => Pipe -> m ()
+processError pipe@Pipe{..} = if isNewVersion pipe_version
+                               then reset pipe
+                               else makeIO ackFailure pipe
+
 ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
-ackFailure pipe = if isNewVersion (pipe_version pipe) then flush pipe RequestReset
-                                                      else flush pipe RequestAckFailure >> void (fetch pipe)
+ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
 
 discardAll :: MonadPipe m => HasCallStack => Pipe -> m ()
 discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)

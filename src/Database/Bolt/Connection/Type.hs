@@ -14,7 +14,7 @@ import           Control.Monad.Except            (MonadError (..), ExceptT (..))
 
 import           Data.Default                    (Default (..))
 import           Data.Map.Strict                 (Map)
-import           Data.Monoid                     ((<>))
+import           Data.Monoid                     ()
 import           Data.Text                       (Text, unpack)
 import           Data.Word                       (Word16, Word32)
 import           GHC.Stack                       (HasCallStack, callStack, prettyCallStack)
@@ -122,13 +122,17 @@ data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseFailure { failMap   :: Map Text Value }
   deriving (Eq, Show)
 
-data Request = RequestInit { agent   :: Text
-                           , token   :: AuthToken
-                           , isHello :: Bool
-                           }
-             | RequestRun  { statement  :: Text
-                           , parameters :: Map Text Value
-                           }
+data Request = RequestInit  { agent   :: Text
+                            , token   :: AuthToken
+                            , isHello :: Bool
+                            }
+             | RequestRun   { statement  :: Text
+                            , parameters :: Map Text Value
+                            }
+             | RequestRunV3 { statement  :: Text
+                            , parameters :: Map Text Value
+                            , extra      :: Map Text Value
+                            }
              | RequestAckFailure
              | RequestReset
              | RequestDiscardAll

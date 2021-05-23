@@ -17,6 +17,7 @@ instance ToStructure Request where
   toStructure RequestInit{..}           = Structure sigInit $ if isHello then [M $ helloMap agent token]
                                                                          else [T agent, M $ tokenMap token]
   toStructure RequestRun{..}            = Structure sigRun [T statement, M parameters]
+  toStructure RequestRunV3{..}          = Structure sigRun [T statement, M parameters, M extra]
   toStructure RequestReset              = Structure sigReset []
   toStructure RequestAckFailure         = Structure sigAFail []
   toStructure RequestPullAll            = Structure sigPAll []
