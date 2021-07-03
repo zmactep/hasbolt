@@ -1,10 +1,14 @@
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DerivingStrategies #-}
 module Database.Bolt.Value.Type where
 
+import           Control.DeepSeq           (NFData)
 import           Control.Monad.Fail        as Fail (MonadFail (..))
 import           Control.Monad.State       (MonadState (..), StateT (..), evalStateT)
 import           Control.Monad.Except      (MonadError (..), ExceptT, runExceptT)
@@ -14,6 +18,7 @@ import           Data.Monoid               ((<>))
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T (unpack, pack)
 import           Data.Word                 (Word8)
+import           GHC.Generics              (Generic)
 
 -- |Error during unpack process
 data UnpackError = NotNull
@@ -42,13 +47,14 @@ instance Show UnpackError where
 
 -- |The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
 newtype UnpackT m a = UnpackT { runUnpackT :: ExceptT UnpackError (StateT ByteString m) a }
-  deriving (Functor, Applicative, Monad, MonadError UnpackError, MonadState ByteString)
+  deriving newtype (Functor, Applicative, Monad, MonadError UnpackError, MonadState ByteString)
 
 -- |The 'Structure' datatype describes Neo4j structure for BOLT protocol
 data Structure = Structure { signature :: Word8
                            , fields    :: [Value]
                            }
-  deriving (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- |Generalizes all datatypes that can be deserialized from 'Structure's.
 class FromStructure a where
@@ -89,7 +95,8 @@ data Value = N ()
            | L [Value]
            | M (Map Text Value)
            | S Structure
-  deriving (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- |Every datatype that can be represented as BOLT protocol value
 class IsValue a where
