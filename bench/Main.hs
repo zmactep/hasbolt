@@ -6,9 +6,10 @@ module Main where
 import           Criterion.Main
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString.Base64 as B64
+import           Data.Default
 import           Data.Functor.Identity  (Identity (..))
 
-import Database.Bolt               (Structure)
+import Database.Bolt               (BoltCfg (..), Structure, connect, query, run)
 import Database.Bolt.Serialization (unpackAction, unpackT)
 
 main :: IO ()
@@ -17,6 +18,10 @@ main = defaultMain
     [ bench "unpack big node" $ nf
       (either (error "wat") id . runIdentity . unpackAction @Identity @Structure unpackT) input
     ]
+  , env (connect $ def { user = "neo4j", password = "test" })
+    $ \pipe -> bgroup "Network tests"
+      [ bench "fetch big node" $ nfIO $ run pipe $ query "MATCH (b:BigNode) RETURN b"
+      ]
   ]
 
 input :: ByteString

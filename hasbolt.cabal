@@ -107,6 +107,7 @@ benchmark hasbolt-bench
                      , bytestring
                      , base64-bytestring
                      , hasbolt
+                     , data-default
   ghc-options:         -threaded -rtsopts -eventlog
   default-language:    Haskell2010
 
