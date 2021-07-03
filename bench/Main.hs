@@ -4,6 +4,7 @@
 module Main where
 
 import           Criterion.Main
+import           Data.Binary.Put        (runPut)
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy   as BSL
@@ -20,7 +21,7 @@ main = defaultMain
     ]
   , bgroup "pack"
     [ bench "pack big node" $ nf
-      pack decodedInput
+      (BSL.toStrict . runPut . pack) decodedInput
     ]
   , env (connect $ def { user = "neo4j", password = "test" })
     $ \pipe -> bgroup "Network tests"

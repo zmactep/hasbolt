@@ -9,10 +9,11 @@
 module Database.Bolt.Value.Type where
 
 import           Control.DeepSeq           (NFData)
-import           Control.Monad.Except      (ExceptT, MonadError (..), runExceptT)
+import           Control.Monad.Except      (ExceptT, MonadError (..))
 import           Control.Monad.Fail        as Fail (MonadFail (..))
-import           Control.Monad.State       (MonadState (..), StateT (..), evalStateT)
+import           Control.Monad.State       (MonadState (..), StateT (..))
 import           Data.Binary.Get
+import           Data.Binary.Put
 import           Data.ByteString           (ByteString)
 import           Data.ByteString.Lazy      (fromStrict)
 import qualified Data.ByteString.Lazy      as BSL
@@ -72,7 +73,7 @@ class ToStructure a where
 -- |The 'BoltValue' class describes values, that can be packed and unpacked for BOLT protocol.
 class BoltValue a where
   -- |Packs a value to 'ByteString'
-  pack :: a -> ByteString
+  pack :: a -> Put
   -- |Unpacks in a State monad to get values from single 'ByteString'
   unpackT :: Get a
 

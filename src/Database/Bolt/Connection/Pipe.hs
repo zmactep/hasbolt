@@ -17,10 +17,12 @@ import           Control.Monad                       (forM_, unless, void, when)
 import           Control.Monad.Except                (ExceptT, MonadError (..), runExceptT)
 import           Control.Monad.Trans                 (MonadIO (..))
 import           Data.Binary                         (decode)
+import           Data.Binary.Put                     (runPut)
 import           Data.ByteString                     (ByteString)
-import qualified Data.ByteString                     as B (concat, length, null, splitAt)
+import qualified Data.ByteString                     as B (concat, length)
 import qualified Data.ByteString.Lazy                as BSL
 import qualified Data.ByteString.Lazy.Internal       as BSL
+import           Data.Int                            (Int64)
 import           Data.Word                           (Word16)
 import           GHC.Stack                           (HasCallStack)
 
@@ -76,7 +78,7 @@ discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 flush :: MonadPipe m => HasCallStack => Pipe -> Request -> m ()
 flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
                         C.send conn terminal
-  where bs        = pack $ toStructure request
+  where bs        = runPut $ pack $ toStructure request
         chunkSize = chunkSizeFor (mcs pipe) bs
         chunks    = split chunkSize bs
         terminal  = encodeStrict (0 :: Word16)
@@ -129,12 +131,12 @@ recvChunk conn size = helper (fromIntegral size)
                          Just chunk -> BSL.chunk chunk <$> helper (sz - B.length chunk)
                          Nothing    -> throwError CannotReadChunk
 
-chunkSizeFor :: Word16 -> ByteString -> Int
+chunkSizeFor :: Word16 -> BSL.ByteString -> Int64
 chunkSizeFor maxSize bs = 1 + div len noc
-  where len = B.length bs
+  where len = BSL.length bs
         noc = 1 + div len (fromIntegral maxSize)
 
-split :: Int -> ByteString -> [ByteString]
-split size bs | B.null bs = []
-              | otherwise = let (chunk, rest) = B.splitAt size bs
-                            in chunk : split size rest
+split :: Int64 -> BSL.ByteString -> [ByteString]
+split size bs | BSL.null bs = []
+              | otherwise = let (chunk, rest) = BSL.splitAt size bs
+                            in BSL.toStrict chunk : split size rest

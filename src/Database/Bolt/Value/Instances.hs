@@ -12,10 +12,12 @@ import           Database.Bolt.Value.Type
 import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
 import           Control.Monad.Except         (MonadError (..))
-import           Data.Binary                  (Binary (..), decode, encode)
+import           Data.Binary                  (Binary (..), Put, decode, encode)
 import           Data.Binary.Get
 import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
-import           Data.ByteString              (ByteString, append, cons, singleton)
+import           Data.Binary.Put              (putByteString, putWord16be, putWord32be, putWord64be,
+                                               putWord8)
+import           Data.ByteString              (ByteString)
 import qualified Data.ByteString              as B
 import           Data.ByteString.Lazy         (fromStrict, toStrict)
 import           Data.Int
@@ -26,15 +28,15 @@ import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
 import           Data.Word
 
 instance BoltValue () where
-  pack () = singleton nullCode
+  pack () = putWord8 nullCode
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == nullCode = pure ()
                            | otherwise     = fail "expected null"
 
 instance BoltValue Bool where
-  pack True  = singleton trueCode
-  pack False = singleton falseCode
+  pack True  = putWord8 trueCode
+  pack False = putWord8 falseCode
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == trueCode  = pure True
@@ -42,11 +44,11 @@ instance BoltValue Bool where
                            | otherwise      = fail "expected bool"
 
 instance BoltValue Int where
-  pack int | isTinyInt int = encodeStrict (fromIntegral int :: Word8)
-           | isIntX  8 int = cons  int8Code $ encodeStrict (fromIntegral int :: Word8)
-           | isIntX 16 int = cons int16Code $ encodeStrict (fromIntegral int :: Word16)
-           | isIntX 32 int = cons int32Code $ encodeStrict (fromIntegral int :: Word32)
-           | isIntX 62 int = cons int64Code $ encodeStrict (fromIntegral int :: Word64)
+  pack int | isTinyInt int = putWord8 $ fromIntegral int
+           | isIntX  8 int = putWord8 int8Code >> putWord8 (fromIntegral int)
+           | isIntX 16 int = putWord8 int16Code >> putWord16be (fromIntegral int :: Word16)
+           | isIntX 32 int = putWord8 int32Code >> putWord32be (fromIntegral int :: Word32)
+           | isIntX 62 int = putWord8 int64Code >> putWord64be (fromIntegral int :: Word64)
            | otherwise     = error "Cannot pack so large integer"
 
   unpackT = getWord8 >>= unpackByMarker
@@ -58,15 +60,16 @@ instance BoltValue Int where
                            | otherwise      = fail "expected int"
 
 instance BoltValue Double where
-  pack dbl = cons doubleCode $ encodeStrict (doubleToWord dbl)
+  pack dbl = putWord8 doubleCode >> putWord64be (doubleToWord dbl)
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == doubleCode = wordToDouble <$> getWord64be
                            | otherwise       = fail "expected double"
 
 instance BoltValue Text where
-  pack txt = mkPackedCollection (B.length pbs) pbs (textConst, text8Code, text16Code, text32Code)
-    where pbs = encodeUtf8 txt
+  pack txt = mkPackedCollection (B.length bs) pbs (textConst, text8Code, text16Code, text32Code)
+    where bs = encodeUtf8 txt
+          pbs = putByteString bs
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyText m    = unpackTextBySize (getSize m)
@@ -79,7 +82,7 @@ instance BoltValue Text where
 
 instance BoltValue a => BoltValue [a] where
   pack lst = mkPackedCollection (length lst) pbs (listConst, list8Code, list16Code, list32Code)
-    where pbs = B.concat $ map pack lst
+    where pbs = mapM_ pack lst
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyList m    = unpackListBySize (getSize m)
@@ -91,8 +94,8 @@ instance BoltValue a => BoltValue [a] where
 
 instance BoltValue a => BoltValue (Map Text a) where
   pack dict = mkPackedCollection (M.size dict) pbs (dictConst, dict8Code, dict16Code, dict32Code)
-    where pbs = B.concat $ map mkPairPack $ M.assocs dict
-          mkPairPack (key, val) = pack key `append` pack val
+    where pbs = mapM_ mkPairPack $ M.assocs dict
+          mkPairPack (key, val) = pack key >> pack val
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyDict m    = unpackDictBySize (getSize m)
@@ -107,12 +110,12 @@ instance BoltValue a => BoltValue (Map Text a) where
                                      pure (key, value)
 
 instance BoltValue Structure where
-  pack (Structure sig lst) | size < size4  = (structConst + fromIntegral size) `cons` pData
-                           | size < size8  = struct8Code `cons` fromIntegral size `cons` pData
-                           | size < size16 = struct16Code `cons` encodeStrict size `append` pData
+  pack (Structure sig lst) | size < size4  = putWord8 (structConst + fromIntegral size) >> pData
+                           | size < size8  = putWord8 struct8Code >> putWord8 (fromIntegral size) >> pData
+                           | size < size16 = putWord8 struct16Code >> putWord16be size >> pData
                            | otherwise     = error "Cannot pack so large structure"
     where size = fromIntegral $ length lst :: Word16
-          pData = sig `cons` B.concat (map pack lst)
+          pData = putWord8 sig >> mapM_ pack lst
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
@@ -192,12 +195,12 @@ encodeStrict :: Binary a => a -> ByteString
 encodeStrict = toStrict . encode
 
 -- |Pack collection using it's size and set of BOLT constants
-mkPackedCollection :: Int -> ByteString -> (Word8, Word8, Word8, Word8) -> ByteString
+mkPackedCollection :: Int -> Put -> (Word8, Word8, Word8, Word8) -> Put
 mkPackedCollection size bst (wt, w8, w16, w32)
-  | size < size4  = cons (wt + fromIntegral size) bst
-  | size < size8  = cons w8 $ cons (fromIntegral size) bst
-  | size < size16 = cons w16 $ encodeStrict (fromIntegral size :: Word16) `append` bst
-  | size < size32 = cons w32 $ encodeStrict (fromIntegral size :: Word32) `append` bst
+  | size < size4  = putWord8 (wt + fromIntegral size) >> bst
+  | size < size8  = putWord8 w8 >> putWord8 (fromIntegral size) >> bst
+  | size < size16 = putWord8 w16 >> putWord16be (fromIntegral size :: Word16) >> bst
+  | size < size32 = putWord8 w32 >> putWord32be (fromIntegral size :: Word32) >> bst
   | otherwise  = error "Cannot pack so large collection"
 
 size4,size8, size16,size32 :: Integral a => a
