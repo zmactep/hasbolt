@@ -6,8 +6,8 @@ module Main where
 import           Criterion.Main
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Lazy   as BSL
 import           Data.Default
-import           Data.Functor.Identity  (Identity (..))
 
 import Database.Bolt               (BoltCfg (..), Structure, connect, query, run)
 import Database.Bolt.Serialization (pack, unpackAction, unpackT)
@@ -16,7 +16,7 @@ main :: IO ()
 main = defaultMain
   [ bgroup "unpackAction"
     [ bench "unpack big node" $ nf
-      (either (error "wat") id . runIdentity . unpackAction @Identity @Structure unpackT) input
+      (either (error "wat") id . unpackAction @Structure unpackT) (BSL.fromStrict input)
     ]
   , bgroup "pack"
     [ bench "pack big node" $ nf
@@ -29,7 +29,7 @@ main = defaultMain
   ]
 
 decodedInput :: Structure
-decodedInput = either (error "wat") id $ runIdentity $ unpackAction @Identity @Structure unpackT input
+decodedInput = either (error "wat") id $ unpackAction @Structure unpackT $ BSL.fromStrict input
 
 input :: ByteString
 input = either (error "wat") id $ B64.decode

@@ -3,21 +3,24 @@
 {-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Pipe where
 
+import qualified Database.Bolt.Connection.Connection as C (close, connect, recv, send, sendMany)
 import           Database.Bolt.Connection.Instances
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Instances
-import           Database.Bolt.Value.Type
-import qualified Database.Bolt.Connection.Connection as C (close, connect, recv,
-                                                           send, sendMany)
+import           Database.Bolt.Value.Type            (BoltValue (pack, unpackT),
+                                                      FromStructure (fromStructure),
+                                                      ToStructure (toStructure), unpackAction)
 
 import           Control.Exception                   (throwIO)
 import           Control.Monad                       (forM_, unless, void, when)
-import           Control.Monad.Except                (MonadError (..), ExceptT, runExceptT)
+import           Control.Monad.Except                (ExceptT, MonadError (..), runExceptT)
 import           Control.Monad.Trans                 (MonadIO (..))
+import           Data.Binary                         (decode)
 import           Data.ByteString                     (ByteString)
-import qualified Data.ByteString                     as B (concat, length, null,
-                                                           splitAt)
+import qualified Data.ByteString                     as B (concat, length, null, splitAt)
+import qualified Data.ByteString.Lazy                as BSL
+import qualified Data.ByteString.Lazy.Internal       as BSL
 import           Data.Word                           (Word16)
 import           GHC.Stack                           (HasCallStack)
 
@@ -84,18 +87,21 @@ flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
                         in  [encodeStrict size, chunk]
 
 fetch :: MonadPipe m => HasCallStack => Pipe -> m Response
-fetch pipe = do bs <- B.concat <$> chunks
-                response <- flip unpackAction bs $ unpackT >>= fromStructure
-                either (throwError . WrongMessageFormat) pure response
+fetch pipe = do bs <- chunks
+                let response = unpackAction unpackT bs >>= fromStructure
+                case response of
+                  Left ue -> throwError $ WrongMessageFormat ue
+                  Right a -> pure a
+
   where conn = connection pipe
 
-        chunks :: MonadPipe m => m [ByteString]
-        chunks = do size <- decodeStrict <$> recvChunk conn 2
+        chunks :: MonadPipe m => m BSL.ByteString
+        chunks = do size <- decode <$> recvChunk conn 2
                     chunk <- recvChunk conn size
-                    if B.null chunk
-                      then pure []
+                    if BSL.null chunk
+                      then pure BSL.empty
                       else do rest <- chunks
-                              pure (chunk:rest)
+                              pure $! chunk <> rest
 
 -- Helper functions
 
@@ -103,7 +109,7 @@ handshake :: MonadPipe m => HasCallStack => Pipe -> BoltCfg -> m ()
 handshake pipe bcfg = do let conn = connection pipe
                          C.send conn (encodeStrict $ magic bcfg)
                          C.send conn (boltVersionProposal bcfg)
-                         serverVersion <- decodeStrict <$> recvChunk conn 4
+                         serverVersion <- decode <$> recvChunk conn 4
                          when (serverVersion /= version bcfg) $
                            throwError UnsupportedServerVersion
                          flush pipe (createInit bcfg)
@@ -114,13 +120,13 @@ handshake pipe bcfg = do let conn = connection pipe
 boltVersionProposal :: BoltCfg -> ByteString
 boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
 
-recvChunk :: MonadPipe m => HasCallStack => ConnectionWithTimeout -> Word16 -> m ByteString
-recvChunk conn size = B.concat <$> helper (fromIntegral size)
-  where helper :: MonadPipe m => Int -> m [ByteString]
-        helper 0  = pure []
+recvChunk :: MonadPipe m => HasCallStack => ConnectionWithTimeout -> Word16 -> m BSL.ByteString
+recvChunk conn size = helper (fromIntegral size)
+  where helper :: MonadPipe m => Int -> m BSL.ByteString
+        helper 0  = pure BSL.empty
         helper sz = do mbChunk <- C.recv conn sz
                        case mbChunk of
-                         Just chunk -> (chunk:) <$> helper (sz - B.length chunk)
+                         Just chunk -> BSL.chunk chunk <$> helper (sz - B.length chunk)
                          Nothing    -> throwError CannotReadChunk
 
 chunkSizeFor :: Word16 -> ByteString -> Int
