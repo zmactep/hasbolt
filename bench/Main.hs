@@ -10,7 +10,7 @@ import           Data.Default
 import           Data.Functor.Identity  (Identity (..))
 
 import Database.Bolt               (BoltCfg (..), Structure, connect, query, run)
-import Database.Bolt.Serialization (unpackAction, unpackT)
+import Database.Bolt.Serialization (pack, unpackAction, unpackT)
 
 main :: IO ()
 main = defaultMain
@@ -18,11 +18,18 @@ main = defaultMain
     [ bench "unpack big node" $ nf
       (either (error "wat") id . runIdentity . unpackAction @Identity @Structure unpackT) input
     ]
+  , bgroup "pack"
+    [ bench "pack big node" $ nf
+      pack decodedInput
+    ]
   , env (connect $ def { user = "neo4j", password = "test" })
     $ \pipe -> bgroup "Network tests"
       [ bench "fetch big node" $ nfIO $ run pipe $ query "MATCH (b:BigNode) RETURN b"
       ]
   ]
+
+decodedInput :: Structure
+decodedInput = either (error "wat") id $ runIdentity $ unpackAction @Identity @Structure unpackT input
 
 input :: ByteString
 input = either (error "wat") id $ B64.decode
