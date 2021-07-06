@@ -7,6 +7,7 @@ module Database.Bolt.Connection.Type where
 
 import           Database.Bolt.Value.Type hiding (unpack)
 
+import           Control.DeepSeq                 (NFData(..), rwhnf)
 import           Control.Exception               (Exception (..), SomeException, handle)
 import           Control.Monad.Trans             (MonadTrans (..), MonadIO (..))
 import           Control.Monad.Reader            (MonadReader (..), ReaderT)
@@ -109,6 +110,9 @@ data Pipe = Pipe { connection   :: ConnectionWithTimeout -- ^Driver connection s
                  , mcs          :: Word16                -- ^Driver maximum chunk size of request
                  , pipe_version :: Word32                -- ^Connection version 0000mnMJ
                  }
+
+instance NFData Pipe where
+  rnf = rwhnf
 
 data AuthToken = AuthToken { scheme      :: Text
                            , principal   :: Text

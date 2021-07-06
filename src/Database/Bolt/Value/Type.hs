@@ -1,19 +1,28 @@
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DeriveAnyClass             #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE DerivingStrategies #-}
 module Database.Bolt.Value.Type where
 
+import           Control.DeepSeq           (NFData)
+import           Control.Monad.Except      (ExceptT, MonadError (..))
 import           Control.Monad.Fail        as Fail (MonadFail (..))
-import           Control.Monad.State       (MonadState (..), StateT (..), evalStateT)
-import           Control.Monad.Except      (MonadError (..), ExceptT, runExceptT)
+import           Control.Monad.State       (MonadState (..), StateT (..))
+import           Data.Binary.Get
+import           Data.Binary.Put
 import           Data.ByteString           (ByteString)
+import           Data.ByteString.Lazy      (fromStrict)
+import qualified Data.ByteString.Lazy      as BSL
 import           Data.Map.Strict           (Map, fromList)
 import           Data.Monoid               ((<>))
 import           Data.Text                 (Text)
-import qualified Data.Text                 as T (unpack, pack)
+import qualified Data.Text                 as T (pack, unpack)
 import           Data.Word                 (Word8)
+import           GHC.Generics              (Generic)
 
 -- |Error during unpack process
 data UnpackError = NotNull
@@ -25,6 +34,7 @@ data UnpackError = NotNull
                  | NotDict
                  | NotStructure
                  | NotValue
+                 | BinaryError Text
                  | Not Text
   deriving (Eq, Ord)
 
@@ -38,17 +48,19 @@ instance Show UnpackError where
   show NotDict      = "Not a Dict value"
   show NotStructure = "Not a Structure value"
   show NotValue     = "Not a Value value"
+  show (BinaryError what) = "Error while decoding binary format: " <> T.unpack what
   show (Not what)   = "Not a " <> T.unpack what <> " (Structure) value"
 
 -- |The 'UnpackT' transformer helps to unpack a set of values from one 'ByteString'
 newtype UnpackT m a = UnpackT { runUnpackT :: ExceptT UnpackError (StateT ByteString m) a }
-  deriving (Functor, Applicative, Monad, MonadError UnpackError, MonadState ByteString)
+  deriving newtype (Functor, Applicative, Monad, MonadError UnpackError, MonadState ByteString)
 
 -- |The 'Structure' datatype describes Neo4j structure for BOLT protocol
 data Structure = Structure { signature :: Word8
                            , fields    :: [Value]
                            }
-  deriving (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- |Generalizes all datatypes that can be deserialized from 'Structure's.
 class FromStructure a where
@@ -61,24 +73,26 @@ class ToStructure a where
 -- |The 'BoltValue' class describes values, that can be packed and unpacked for BOLT protocol.
 class BoltValue a where
   -- |Packs a value to 'ByteString'
-  pack :: a -> ByteString
+  pack :: a -> Put
   -- |Unpacks in a State monad to get values from single 'ByteString'
-  unpackT :: Monad m => UnpackT m a
+  unpackT :: Get a
 
 -- |Unpacks a 'ByteString' to selected value
 unpack :: (Monad m, BoltValue a)  => ByteString -> m (Either UnpackError a)
-unpack = unpackAction unpackT
+unpack = pure . unpackAction unpackT . fromStrict
 
 -- |Old-style unpack that runs 'fail' on error
 unpackF :: (MonadFail m, BoltValue a) => ByteString -> m a
-unpackF bs = do result <- unpack bs
+unpackF bs = do let result = unpackAction unpackT $ fromStrict bs
                 case result of
                   Right x -> pure x
                   Left  e -> Fail.fail $ show e
 
 -- |Unpacks a 'ByteString' to selected value by some custom action
-unpackAction :: Monad m => UnpackT m a -> ByteString -> m (Either UnpackError a)
-unpackAction action = evalStateT (runExceptT $ runUnpackT action) 
+unpackAction :: Get a -> BSL.ByteString -> Either UnpackError a
+unpackAction action bs = case runGetOrFail action bs of
+  Left (_, _, err) -> Left $ BinaryError $ T.pack err
+  Right (_, _, a) -> Right a
 
 -- |The 'Value' datatype generalizes all primitive 'BoltValue's
 data Value = N ()
@@ -89,7 +103,8 @@ data Value = N ()
            | L [Value]
            | M (Map Text Value)
            | S Structure
-  deriving (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- |Every datatype that can be represented as BOLT protocol value
 class IsValue a where
