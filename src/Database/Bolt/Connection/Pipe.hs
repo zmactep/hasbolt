@@ -40,8 +40,7 @@ connect = makeIO connect'
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close pipe = do liftIO $ print "Closed"
-                when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
+close pipe = do when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
                 C.close $ connection pipe
 
 -- |Resets current sessions
