@@ -8,21 +8,22 @@
 {-# LANGUAGE DerivingStrategies #-}
 module Database.Bolt.Value.Type where
 
-import           Control.DeepSeq           (NFData)
-import           Control.Monad.Except      (ExceptT, MonadError (..))
-import           Control.Monad.Fail        as Fail (MonadFail (..))
-import           Control.Monad.State       (MonadState (..), StateT (..))
+import           Control.DeepSeq      (NFData)
+import           Control.Monad.Except (ExceptT, MonadError (..))
+import           Control.Monad.Fail   as Fail (MonadFail (..))
+import           Control.Monad.State  (MonadState (..), StateT (..))
 import           Data.Binary.Get
 import           Data.Binary.Put
-import           Data.ByteString           (ByteString)
-import           Data.ByteString.Lazy      (fromStrict)
-import qualified Data.ByteString.Lazy      as BSL
-import           Data.Map.Strict           (Map, fromList)
-import           Data.Monoid               ((<>))
-import           Data.Text                 (Text)
-import qualified Data.Text                 as T (pack, unpack)
-import           Data.Word                 (Word8)
-import           GHC.Generics              (Generic)
+import           Data.ByteString      (ByteString)
+import           Data.ByteString.Lazy (fromStrict)
+import qualified Data.ByteString.Lazy as BSL
+import           Data.List.NonEmpty   (NonEmpty (..), toList)
+import           Data.Map.Strict      (Map, fromList)
+import           Data.Text            (Text)
+import qualified Data.Text            as T (pack, unpack)
+import           Data.Word            (Word8)
+import           GHC.Generics         (Generic)
+import           GHC.Stack            (HasCallStack)
 
 -- |Error during unpack process
 data UnpackError = NotNull
@@ -109,9 +110,9 @@ data Value = N ()
 -- |Every datatype that can be represented as BOLT protocol value
 class IsValue a where
   -- |Wraps value with 'Value' constructor
-  toValue :: a -> Value
+  toValue :: HasCallStack => a -> Value
   -- |How to represent a list of values
-  toValueList :: [a] -> Value
+  toValueList :: HasCallStack => [a] -> Value
   toValueList = L . fmap toValue
 
 instance IsValue () where
@@ -141,6 +142,13 @@ instance IsValue Char where
 
 instance IsValue a => IsValue [a] where
   toValue = toValueList
+
+instance IsValue a => IsValue (NonEmpty a) where
+  toValue = toValue . toList
+
+instance IsValue a => IsValue (Maybe a) where
+  toValue (Just a) = toValue a
+  toValue _        = N ()
 
 instance IsValue (Map Text Value) where
   toValue = M
@@ -182,4 +190,3 @@ data Path = Path { pathNodes         :: [Node]          -- ^Chain of 'Node's in 
                  , pathSequence      :: [Int]           -- ^Path sequence
                  }
   deriving (Show, Eq)
-

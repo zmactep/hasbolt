@@ -9,7 +9,6 @@ module Database.Bolt.Value.Instances where
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Control.Applicative          (pure)
 import           Control.Monad                (forM, replicateM)
 import           Control.Monad.Except         (MonadError (..))
 import           Data.Binary                  (Binary (..), Put, decode, encode)
@@ -48,7 +47,7 @@ instance BoltValue Int where
            | isIntX  8 int = putWord8 int8Code >> putWord8 (fromIntegral int)
            | isIntX 16 int = putWord8 int16Code >> putWord16be (fromIntegral int :: Word16)
            | isIntX 32 int = putWord8 int32Code >> putWord32be (fromIntegral int :: Word32)
-           | isIntX 62 int = putWord8 int64Code >> putWord64be (fromIntegral int :: Word64)
+           | isIntX 64 int = putWord8 int64Code >> putWord64be (fromIntegral int :: Word64)
            | otherwise     = error "Cannot pack so large integer"
 
   unpackT = getWord8 >>= unpackByMarker
@@ -204,7 +203,7 @@ mkPackedCollection size bst (wt, w8, w16, w32)
   | otherwise  = error "Cannot pack so large collection"
 
 size4,size8, size16,size32 :: Integral a => a
-size4   = 2^(4  :: Int)
-size8   = 2^(8  :: Int)
-size16  = 2^(16 :: Int)
-size32  = 2^(32 :: Int)
+size4  = 2^(4  :: Int)
+size8  = 2^(8  :: Int)
+size16 = 2^(16 :: Int)
+size32 = 2^(32 :: Int)
