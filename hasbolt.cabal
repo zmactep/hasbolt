@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.6.1
+version:             0.1.6.2
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -123,4 +123,3 @@ benchmark hasbolt-bench
 source-repository head
   type:     git
   location: https://github.com/zmactep/hasbolt
-
