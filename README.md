@@ -8,6 +8,17 @@ HasBOLT
 
 Haskell driver for Neo4j 3+ (BOLT protocol)
 
+Neo4j
+-----
+
+The easiest way to get the neo4j database and all it's dependencies is using docker:
+```bash
+docker pull neo4j:3.5.35-community
+docker run --publish=7474:7474 --publish=7687:7687 --volume=$HOME/neo4j/data:/data --env=NEO4J_AUTH=none neo4j:3.5.35-community
+```
+
+`3.5.35` is the latest version that is supported by hasbolt.
+
 Documentation
 -------------
 
