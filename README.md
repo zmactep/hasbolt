@@ -25,6 +25,13 @@ docker exec -i -t neo4j-3.5.35 wget https://github.com/neo4j-contrib/neo4j-apoc-
 docker restart neo4j-3.5.35
 ```
 
+For neo4j 3.5 the following documentation is available:
+* Operations manual: https://neo4j.com/docs/operations-manual/3.5/
+* Cypher manual: https://neo4j.com/docs/cypher-manual/3.5/introduction/
+* APOC procedures: https://github.com/neo4j-contrib/neo4j-apoc-procedures/tree/3.5/docs
+* Status codes: https://neo4j.com/docs/status-codes/3.5/
+* Java reference: https://neo4j.com/docs/java-reference/3.5/
+
 Documentation
 -------------
 
