@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.6.2
+version:             0.1.6.3
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -39,8 +39,9 @@ tested-with:
    || ==8.8.4
    || ==8.10.7
    || ==9.0.2
-   || ==9.2.5
-   || ==9.4.4
+   || ==9.2.8
+   || ==9.4.5
+   || ==9.6.2
 
 library
   hs-source-dirs:      src
