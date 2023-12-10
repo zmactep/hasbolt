@@ -4,12 +4,17 @@ module Database.Bolt.Transaction
   ) where
 
 import           Control.Monad                  ( void )
+import           Control.Monad.Reader           ( ask )
 import           Control.Monad.Trans            ( MonadIO(..) )
 import           Control.Monad.Except           ( MonadError(..) )
 
 import           Database.Bolt.Connection       ( BoltActionT
-                                                , query'
+                                                , query', sendRawRequest
                                                 )
+import           Database.Bolt.Connection.Type  ( Request(..)
+                                                , pipe_version
+                                                )
+import           Database.Bolt.Value.Helpers    ( isNewVersion )
 
 -- |Runs a sequence of actions as transaction. All queries would be rolled back
 -- in case of any exception inside the block.
@@ -22,10 +27,22 @@ transact actions = do
     pure result
 
 txBegin :: MonadIO m => BoltActionT m ()
-txBegin = void $ query' "BEGIN"
+txBegin = do
+  pipe <- ask
+  if isNewVersion $ pipe_version pipe
+     then void $ sendRawRequest $ RequestBegin mempty
+     else void $ query' "BEGIN"
 
 txCommit :: MonadIO m => BoltActionT m ()
-txCommit = void $ query' "COMMIT"
+txCommit = do
+  pipe <- ask
+  if isNewVersion $ pipe_version pipe
+     then void $ sendRawRequest RequestCommit
+     else void $ query' "COMMIT"
 
 txRollback :: MonadIO m => BoltActionT m ()
-txRollback = void $ query' "ROLLBACK"
+txRollback = do
+  pipe <- ask
+  if isNewVersion $ pipe_version pipe
+     then void $ sendRawRequest RequestRollback
+     else void $ query' "ROLLBACK"
