@@ -15,15 +15,25 @@ import           Database.Bolt.Connection.Type  ( Request(..)
                                                 , pipe_version
                                                 )
 import           Database.Bolt.Value.Helpers    ( isNewVersion )
+import Debug.Trace
 
 -- |Runs a sequence of actions as transaction. All queries would be rolled back
 -- in case of any exception inside the block.
 transact :: MonadIO m => BoltActionT m a -> BoltActionT m a
 transact actions = do
+    liftIO $ traceIO "before begin"
     txBegin
-    let processErrors = flip catchError $ \e -> txRollback >> throwError e
+    liftIO $ traceIO "after begin"
+    let
+      processErrors = flip catchError $ \e -> do
+        liftIO $ traceIO "before rollback"
+        txRollback
+        liftIO $ traceIO "after rollback"
+        throwError e
     result <- processErrors actions
+    liftIO $ traceIO "before commit"
     txCommit
+    liftIO $ traceIO "after commit"
     pure result
 
 txBegin :: MonadIO m => BoltActionT m ()
