@@ -27,6 +27,7 @@ transact actions = do
     let
       processErrors = flip catchError $ \e -> do
         liftIO $ traceIO "before rollback"
+        liftIO $ traceShowM ("EXCEPTION", e)
         txRollback
         liftIO $ traceIO "after rollback"
         throwError e
