@@ -32,27 +32,36 @@ instance Show ResponseError where
   show UnknownResponseFailure         = "Unknown response error"
 
 -- |Error that can appear during 'BoltActionT' manipulations
-data BoltError = UnsupportedServerVersion
-               | AuthentificationFailed
-               | ResetFailed
-               | CannotReadChunk
-               | WrongMessageFormat UnpackError
-               | NoStructureInResponse
-               | ResponseError ResponseError
-               | RecordHasNoKey Text
-               | NonHasboltError SomeException
+data BoltError = HasCallStack => UnsupportedServerVersion
+               | HasCallStack => AuthentificationFailed
+               | HasCallStack => ResetFailed
+               | HasCallStack => CannotReadChunk
+               | HasCallStack => WrongMessageFormat UnpackError
+               | HasCallStack => NoStructureInResponse
+               | HasCallStack => ResponseError ResponseError
+               | HasCallStack => RecordHasNoKey Text
+               | HasCallStack => NonHasboltError SomeException
                | HasCallStack => TimeOut
 
 instance Show BoltError where
-  show UnsupportedServerVersion = "Cannot connect: unsupported server version"
-  show AuthentificationFailed   = "Cannot connect: authentification failed"
-  show ResetFailed              = "Cannot reset current pipe: recieved failure from server"
-  show CannotReadChunk          = "Cannot fetch: chunk read failed"
-  show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")"
-  show NoStructureInResponse    = "Cannot fetch: no structure in response"
-  show (ResponseError re)       = show re
-  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
-  show (NonHasboltError msg)    = "User error: " <> show msg
+  show UnsupportedServerVersion = "Cannot connect: unsupported server version\n"
+    <> prettyCallStack callStack
+  show AuthentificationFailed   = "Cannot connect: authentification failed\n"
+    <> prettyCallStack callStack
+  show ResetFailed              = "Cannot reset current pipe: recieved failure from server\n"
+    <> prettyCallStack callStack
+  show CannotReadChunk          = "Cannot fetch: chunk read failed\n"
+    <> prettyCallStack callStack
+  show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")\n"
+    <> prettyCallStack callStack
+  show NoStructureInResponse    = "Cannot fetch: no structure in response\n"
+    <> prettyCallStack callStack
+  show (ResponseError re)       = show re <> "\n"
+    <> prettyCallStack callStack
+  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented\n"
+    <> prettyCallStack callStack
+  show (NonHasboltError msg)    = "User error: " <> show msg <> "\n"
+    <> prettyCallStack callStack
   show TimeOut                  = "Operation timeout\n" <> prettyCallStack callStack
 
 instance Exception BoltError
