@@ -109,6 +109,7 @@ sendRawRequest :: MonadIO m => HasCallStack => Request -> BoltActionT m Response
 sendRawRequest req = do
   pipe <- ask
   liftE $ do
+    liftIO $ print ("SENDING REQUEST ", req)
     flush pipe req
     status <- fetch pipe
     if isSuccess status
