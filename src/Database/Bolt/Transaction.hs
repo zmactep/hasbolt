@@ -16,25 +16,32 @@ import           Database.Bolt.Connection.Type  ( Request(..)
                                                 )
 import           Database.Bolt.Value.Helpers    ( isNewVersion )
 import Debug.Trace
+import Data.IORef (IORef, newIORef, atomicModifyIORef')
+import GHC.IO (unsafePerformIO)
+
+{-# NOINLINE txId #-}
+txId :: IORef Int
+txId = unsafePerformIO $ newIORef 0
 
 -- |Runs a sequence of actions as transaction. All queries would be rolled back
 -- in case of any exception inside the block.
 transact :: MonadIO m => BoltActionT m a -> BoltActionT m a
 transact actions = do
-    liftIO $ traceIO "before begin"
+    newId <- fmap show $ liftIO $ atomicModifyIORef' txId $ \n -> (n + 1, n)
+    liftIO $ putStrLn $ "before begin " <> newId
     txBegin
-    liftIO $ traceIO "after begin"
+    liftIO $ putStrLn $ "after begin " <> newId
     let
       processErrors = flip catchError $ \e -> do
-        liftIO $ traceIO "before rollback"
-        liftIO $ traceShowM ("EXCEPTION", e)
+        liftIO $ putStrLn $ "before rollback " <> newId
+        liftIO $ print ("EXCEPTION" :: String, e)
         txRollback
-        liftIO $ traceIO "after rollback"
+        liftIO $ putStrLn $ "after rollback " <> newId
         throwError e
     result <- processErrors actions
-    liftIO $ traceIO "before commit"
+    liftIO $ putStrLn $ "before commit " <> newId
     txCommit
-    liftIO $ traceIO "after commit"
+    liftIO $ putStrLn $ "after commit " <> newId
     pure result
 
 txBegin :: MonadIO m => BoltActionT m ()
