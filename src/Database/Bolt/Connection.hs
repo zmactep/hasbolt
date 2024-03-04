@@ -10,6 +10,8 @@ module Database.Bolt.Connection
   , queryP, query
   , queryP', query'
   , queryP_, query_
+
+  , sendRawRequest
   ) where
 
 import           Database.Bolt.Connection.Pipe
@@ -102,16 +104,22 @@ pullRecords strict keys = do pipe <- ask
                                    else unsafeInterleaveIO pull
         pure (record:rest)
 
--- |Sends request to database and makes an action
+-- | Sends any 'Request' and reads the response.
+sendRawRequest :: MonadIO m => HasCallStack => Request -> BoltActionT m Response
+sendRawRequest req = do
+  pipe <- ask
+  liftE $ do
+    flush pipe req
+    status <- fetch pipe
+    if isSuccess status
+      then pure status
+      else do processError pipe
+              throwError $ ResponseError (mkFailure status)
+
+-- | Sends a query with parameters to database and reads the response.
 sendRequest :: MonadIO m => HasCallStack => Text -> Map Text Value -> Map Text Value -> BoltActionT m Response
 sendRequest cypher params ext =
   do pipe <- ask
-     liftE $ do
-         if isNewVersion (pipe_version pipe)
-            then flush pipe $ RequestRunV3 cypher params ext
-            else flush pipe $ RequestRun cypher params
-         status <- fetch pipe
-         if isSuccess status
-           then pure status
-           else do processError pipe
-                   throwError $ ResponseError (mkFailure status)
+     if isNewVersion (pipe_version pipe)
+        then sendRawRequest $ RequestRunV3 cypher params ext
+        else sendRawRequest $ RequestRun cypher params

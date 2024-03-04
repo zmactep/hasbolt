@@ -12,6 +12,7 @@ import           Database.Bolt.Value.Type
 import           Control.Monad.Except           (MonadError (..))
 import           Data.Map.Strict                (Map, insert, fromList, empty, (!))
 import           Data.Text                      (Text)
+import           GHC.Stack                      (HasCallStack)
 
 instance ToStructure Request where
   toStructure RequestInit{..}           = Structure sigInit $ if isHello then [M $ helloMap agent token]
@@ -23,15 +24,18 @@ instance ToStructure Request where
   toStructure RequestPullAll            = Structure sigPAll []
   toStructure RequestDiscardAll         = Structure sigDAll []
   toStructure RequestGoodbye            = Structure sigGBye []
+  toStructure RequestBegin{..}          = Structure sigBegin [M extra]
+  toStructure RequestCommit             = Structure sigCommit []
+  toStructure RequestRollback           = Structure sigRollback []
 
 instance FromStructure Response where
   fromStructure Structure{..}
-    | signature == sigSucc = ResponseSuccess <$> extractMap (head fields)
+    | signature == sigSucc = ResponseSuccess <$> extractMap fields
     | signature == sigRecs = pure $ ResponseRecord (removeExtList fields)
-    | signature == sigIgn  = ResponseIgnored <$> extractMap (head fields)
-    | signature == sigFail = ResponseFailure <$> extractMap (head fields)
-    | otherwise            = throwError $ Not "Response" 
-    where removeExtList :: [Value] -> [Value]
+    | signature == sigIgn  = pure ResponseIgnored
+    | signature == sigFail = ResponseFailure <$> extractMap fields
+    | otherwise            = throwError $ Not "Response"
+    where removeExtList :: HasCallStack => [Value] -> [Value]
           removeExtList [L x] = x
           removeExtList _     = error "Record must contain only a singleton list"
 
@@ -46,8 +50,8 @@ isFailure (ResponseFailure _) = True
 isFailure _                   = False
 
 isIgnored :: Response -> Bool
-isIgnored (ResponseIgnored _) = True
-isIgnored _                   = False
+isIgnored ResponseIgnored = True
+isIgnored _               = False
 
 isRecord :: Response -> Bool
 isRecord (ResponseRecord _) = True
@@ -67,7 +71,7 @@ createRun :: Text -> Request
 createRun stmt = RequestRun stmt empty
 
 
-helloMap :: Text -> AuthToken  -> Map Text Value 
+helloMap :: Text -> AuthToken  -> Map Text Value
 helloMap a = insert "user_agent" (T a) . tokenMap
 
 tokenMap :: AuthToken -> Map Text Value
@@ -76,8 +80,8 @@ tokenMap at = fromList [ "scheme"     =: scheme at
                        , "credentials" =: credentials at
                        ]
 
-extractMap :: MonadError UnpackError m => Value -> m (Map Text Value)
-extractMap (M mp) = pure mp
+extractMap :: MonadError UnpackError m => [Value] -> m (Map Text Value)
+extractMap [M mp] = pure mp
 extractMap _      = throwError NotDict
 
 mkFailure :: Response -> ResponseError
