@@ -8,6 +8,30 @@ HasBOLT
 
 Haskell driver for Neo4j 3+ (BOLT protocol)
 
+Neo4j
+-----
+
+`3.5.35` is the latest neo4j version that is supported by hasbolt. The easiest way to get the neo4j database and all it's dependencies is using docker:
+```bash
+docker pull neo4j:3.5.35-community
+docker run --publish=7474:7474 --publish=7687:7687 --volume=$HOME/neo4j/data:/data --name neo4j-3.5.35 neo4j:3.5.35-community
+```
+
+For development you can disable authentication and enable apoc functions.
+```bash
+docker pull neo4j:3.5.35-community
+docker run -e NEO4J_dbms_security_procedures_unrestricted=apoc.\\\* --env=NEO4J_AUTH=none --publish=7474:7474 --publish=7687:7687 --volume=$HOME/neo4j/data:/data --name neo4j-3.5.35 neo4j:3.5.35-community
+docker exec -i -t neo4j-3.5.35 wget https://github.com/neo4j-contrib/neo4j-apoc-procedures/releases/download/3.5.0.21/apoc-3.5.0.21-all.jar -P /var/lib/neo4j/plugins/
+docker restart neo4j-3.5.35
+```
+
+For neo4j 3.5 the following documentation is available:
+* Operations manual: https://neo4j.com/docs/operations-manual/3.5/
+* Cypher manual: https://neo4j.com/docs/cypher-manual/3.5/introduction/
+* APOC procedures: https://github.com/neo4j-contrib/neo4j-apoc-procedures/tree/3.5/docs
+* Status codes: https://neo4j.com/docs/status-codes/3.5/
+* Java reference: https://neo4j.com/docs/java-reference/3.5/
+
 Documentation
 -------------
 
