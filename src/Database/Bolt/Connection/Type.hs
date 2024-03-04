@@ -51,7 +51,7 @@ instance Show BoltError where
   show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")"
   show NoStructureInResponse    = "Cannot fetch: no structure in response"
   show (ResponseError re)       = show re
-  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
+  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not present"
   show (NonHasboltError msg)    = "User error: " <> show msg
   show TimeOut                  = "Operation timeout\n" <> prettyCallStack callStack
 
