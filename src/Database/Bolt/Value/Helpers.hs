@@ -160,27 +160,47 @@ sigPath :: Word8
 sigPath = 80
 
 -- == BOLT requests signatures
+-- https://neo4j.com/docs/bolt/current/bolt/message/
 
+-- @INIT@ in v1 & v2, @HELLO@ in v3.
 sigInit :: Word8
-sigInit = 1
+sigInit = 0x01
 
+-- @RUN@.
 sigRun :: Word8
-sigRun = 16
+sigRun = 0x10
 
+-- @ACK_FAILURE@, removed in v3.
 sigAFail :: Word8
-sigAFail = 14
+sigAFail = 0x0e
 
+-- @RESET@
 sigReset :: Word8
-sigReset = 15
+sigReset = 0x0f
 
+-- @DISCARD_ALL@ in v1 & v2, @DISCARD@ in v3.
 sigDAll :: Word8
-sigDAll = 47
+sigDAll = 0x2f
 
+-- @PULL_ALL@ in v1 & v2, @PULL@ in v3.
 sigPAll :: Word8
-sigPAll = 63
+sigPAll = 0x3f
 
-sigGBye :: Word8 
-sigGBye = 2
+-- @GOODBYE@, introduced in v3.
+sigGBye :: Word8
+sigGBye = 0x02
+
+-- @BEGIN@, introduced in v3.
+sigBegin :: Word8
+sigBegin = 0x11
+
+-- @COMMIT@, introduced in v3.
+sigCommit :: Word8
+sigCommit = 0x12
+
+-- @ROLLBACK@, introduced in v3.
+sigRollback :: Word8
+sigRollback = 0x13
 
 -- == BOLT responses signatures
 

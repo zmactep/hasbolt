@@ -65,7 +65,7 @@ data Structure = Structure { signature :: Word8
 
 -- |Generalizes all datatypes that can be deserialized from 'Structure's.
 class FromStructure a where
-  fromStructure :: MonadError UnpackError m => Structure -> m a
+  fromStructure :: (HasCallStack, MonadError UnpackError m) => Structure -> m a
 
 -- |Generalizes all datatypes that can be serialized to 'Structure's.
 class ToStructure a where

@@ -12,6 +12,7 @@ import           Control.Monad.Except               (MonadError (..), withExcept
 import           Data.Map.Strict                    (Map)
 import qualified Data.Map.Strict               as M (lookup)
 import           Data.Text                          (Text)
+import           GHC.Float                          (int2Double)
 
 -- |Result type for query requests
 type Record = Map Text Value
@@ -28,7 +29,7 @@ exactMaybe = either (const Nothing) Just . exactEither
 
 instance RecordValue () where
   exactEither (N _) = pure ()
-  exactEither _     = throwError NotNull 
+  exactEither _     = throwError NotNull
 
 instance RecordValue Bool where
   exactEither (B b) = pure b
@@ -40,6 +41,7 @@ instance RecordValue Int where
 
 instance RecordValue Double where
   exactEither (F d) = pure d
+  exactEither (I i) = pure $ int2Double i
   exactEither _     = throwError NotFloat
 
 instance RecordValue Text where
@@ -51,7 +53,7 @@ instance RecordValue Value where
 
 instance RecordValue a => RecordValue [a] where
   exactEither (L l) = traverse exactEither l
-  exactEither _     = throwError NotList 
+  exactEither _     = throwError NotList
 
 instance RecordValue a => RecordValue (Maybe a) where
   exactEither (N _) = pure Nothing
@@ -63,7 +65,7 @@ instance RecordValue (Map Text Value) where
 
 instance RecordValue Node where
   exactEither (S s) = fromStructure s
-  exactEither _     = throwError $ Not "Node" 
+  exactEither _     = throwError $ Not "Node"
 
 instance RecordValue Relationship where
   exactEither (S s) = fromStructure s
@@ -71,7 +73,7 @@ instance RecordValue Relationship where
 
 instance RecordValue URelationship where
   exactEither (S s) = fromStructure s
-  exactEither _     = throwError $ Not "URelationship" 
+  exactEither _     = throwError $ Not "URelationship"
 
 instance RecordValue Path where
   exactEither (S s) = fromStructure s

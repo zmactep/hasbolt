@@ -122,24 +122,35 @@ data AuthToken = AuthToken { scheme      :: Text
 
 data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseRecord  { recsList  :: [Value] }
-              | ResponseIgnored { ignoreMap :: Map Text Value }
+              | ResponseIgnored
               | ResponseFailure { failMap   :: Map Text Value }
   deriving (Eq, Show)
 
-data Request = RequestInit  { agent   :: Text
-                            , token   :: AuthToken
-                            , isHello :: Bool
-                            }
-             | RequestRun   { statement  :: Text
-                            , parameters :: Map Text Value
-                            }
-             | RequestRunV3 { statement  :: Text
-                            , parameters :: Map Text Value
-                            , extra      :: Map Text Value
-                            }
+data Request = RequestInit
+                 { agent   :: Text
+                 , token   :: AuthToken
+                 , isHello :: Bool
+                 }
+             | RequestRun
+                 { statement  :: Text
+                 , parameters :: Map Text Value
+                 }
+             | RequestRunV3
+                 { statement  :: Text
+                 , parameters :: Map Text Value
+                 , extra      :: Map Text Value
+                 }
              | RequestAckFailure
              | RequestReset
              | RequestDiscardAll
              | RequestPullAll
              | RequestGoodbye
+               -- | Introduced in v3.
+             | RequestBegin
+                 { extra       :: Map Text Value
+                 }
+               -- | Introduced in v3.
+             | RequestCommit
+               -- | Introduced in v3.
+             | RequestRollback
   deriving (Eq, Show)
