@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wwarn=incomplete-uni-patterns #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 

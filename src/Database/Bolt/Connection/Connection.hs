@@ -1,7 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Connection where
 
-import           Control.Applicative    (pure, (<$>))
 import           Control.Exception      (throwIO)
 import           Control.Monad          (forM_, when)
 import           Control.Monad.Trans    (MonadIO (..))

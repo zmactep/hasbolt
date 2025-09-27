@@ -1,5 +1,5 @@
 name:                hasbolt
-version:             0.1.7.0
+version:             0.1.7.1
 synopsis:            Haskell driver for Neo4j 3+ (BOLT protocol)
 description:
   Haskell driver for Neo4j 3+ (BOLT protocol).
@@ -35,13 +35,11 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 tested-with:
-  GHC ==8.6.5
-   || ==8.8.4
-   || ==8.10.7
-   || ==9.0.2
-   || ==9.2.8
-   || ==9.4.5
-   || ==9.6.2
+  GHC ==9.2.8
+   || ==9.4.8
+   || ==9.6.7
+   || ==9.8.4
+   || ==9.10.3
 
 library
   hs-source-dirs:      src
@@ -60,17 +58,16 @@ library
                      , Database.Bolt.Record
                      , Database.Bolt.Transaction
   build-depends:       base >= 4.7 && < 5
-                     , bytestring >= 0.10.8.1 && < 0.12
-                     , text >= 1.2.2.1 && < 2.1
-                     , containers >= 0.5.7.1 && < 0.7
+                     , bytestring >= 0.10.8.1 && < 0.13
+                     , text >= 1.2.2.1 && < 2.2
+                     , containers >= 0.5.7.1 && < 0.9
                      , binary >= 0.8.3.0 && < 1.0
                      , data-binary-ieee754 >= 0.4.4 && < 0.5
                      , mtl >= 2.2.0 && < 2.4
-                     , network >= 2.6.3.1 && < 3.2
-                     , connection >= 0.2.8 && < 0.4
-                     , data-default >= 0.7.1.1 && < 0.8
-                     , deepseq >= 1.4 && < 1.5
-                     , deepseq-generics >= 0.2.0.0 && < 0.3
+                     , network >= 2.6.3.1 && < 3.3
+                     , crypton-connection >= 0.3.1 && < 0.5
+                     , data-default >= 0.7.1.1 && < 0.9
+                     , deepseq >= 1.4 && < 1.6
   if impl(ghc < 8.6)
     build-depends:     contravariant >= 1.4.1 && < 1.6
   if impl(ghc < 8.0)
@@ -98,8 +95,7 @@ test-suite hasbolt-test
   other-modules:       Hex
   build-depends:       base >= 4.7 && < 5
                      , hasbolt
-                     , hspec >= 2.4.1 && < 2.11
-                     , QuickCheck >= 2.9 && < 2.15
+                     , hspec >= 2.4.1 && < 2.12
                      , text
                      , containers
                      , binary
@@ -118,7 +114,6 @@ benchmark hasbolt-bench
                      , criterion
                      , data-default
                      , hasbolt
-                     , hspec >= 2.4.1 && < 2.11
   ghc-options:         -threaded -rtsopts -eventlog
   default-language:    Haskell2010
 
