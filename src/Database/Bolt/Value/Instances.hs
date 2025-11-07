@@ -98,7 +98,7 @@ instance BoltValue a => BoltValue (Map Text a) where
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyDict m    = unpackDictBySize (getSize m)
-                           | m == dict8Code  = toInt <$> getInt16be >>= unpackDictBySize
+                           | m == dict8Code  = toInt <$> getInt8 >>= unpackDictBySize
                            | m == dict16Code = toInt <$> getInt16be >>= unpackDictBySize
                            | m == dict32Code = toInt <$> getInt32be >>= unpackDictBySize
                            | otherwise       = fail "expected dict"
