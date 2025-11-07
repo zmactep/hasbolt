@@ -9,29 +9,30 @@ module Database.Bolt.Value.Instances where
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Control.Monad                (forM, replicateM)
-import           Control.Monad.Except         (MonadError (..))
-import           Data.Binary                  (Binary (..), Put, decode, encode)
+import           Control.Monad        (forM, replicateM)
+import           Control.Monad.Except (MonadError (..))
+import           Data.Binary          (Binary (..), Put, decode, encode)
 import           Data.Binary.Get
-import           Data.Binary.IEEE754          (doubleToWord, wordToDouble)
-import           Data.Binary.Put              (putByteString, putWord16be, putWord32be, putWord64be,
-                                               putWord8)
-import           Data.ByteString              (ByteString)
-import qualified Data.ByteString              as B
-import           Data.ByteString.Lazy         (fromStrict, toStrict)
+import           Data.Binary.IEEE754  (doubleToWord, wordToDouble)
+import           Data.Binary.Put      (putByteString, putWord16be, putWord32be, putWord64be,
+                                       putWord8)
+import           Data.ByteString      (ByteString)
+import qualified Data.ByteString      as B
+import           Data.ByteString.Lazy (fromStrict, toStrict)
 import           Data.Int
-import           Data.Map.Strict              (Map)
-import qualified Data.Map.Strict              as M
-import           Data.Text                    (Text)
-import           Data.Text.Encoding           (decodeUtf8, encodeUtf8)
+import           Data.Map.Strict      (Map)
+import qualified Data.Map.Strict      as M
+import           Data.Text            (Text)
+import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
 import           Data.Word
+import           GHC.Stack            (HasCallStack, callStack, prettyCallStack)
 
 instance BoltValue () where
   pack () = putWord8 nullCode
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == nullCode = pure ()
-                           | otherwise     = fail "expected null"
+                           | otherwise     = failUnpack "null" m
 
 instance BoltValue Bool where
   pack True  = putWord8 trueCode
@@ -40,7 +41,7 @@ instance BoltValue Bool where
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == trueCode  = pure True
                            | m == falseCode = pure False
-                           | otherwise      = fail "expected bool"
+                           | otherwise      = failUnpack "bool" m
 
 instance BoltValue Int where
   pack int | isTinyInt int = putWord8 $ fromIntegral int
@@ -56,14 +57,14 @@ instance BoltValue Int where
                            | m == int16Code = toInt <$> getInt16be
                            | m == int32Code = toInt <$> getInt32be
                            | m == int64Code = toInt <$> getInt64be
-                           | otherwise      = fail "expected int"
+                           | otherwise      = failUnpack "int" m
 
 instance BoltValue Double where
   pack dbl = putWord8 doubleCode >> putWord64be (doubleToWord dbl)
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | m == doubleCode = wordToDouble <$> getWord64be
-                           | otherwise       = fail "expected double"
+                           | otherwise       = failUnpack "double" m
 
 instance BoltValue Text where
   pack txt = mkPackedCollection (B.length bs) pbs (textConst, text8Code, text16Code, text32Code)
@@ -75,7 +76,7 @@ instance BoltValue Text where
                            | m == text8Code  = toInt <$> getInt8 >>= unpackTextBySize
                            | m == text16Code = toInt <$> getInt16be >>= unpackTextBySize
                            | m == text32Code = toInt <$> getInt32be >>= unpackTextBySize
-                           | otherwise       = fail "expected text"
+                           | otherwise       = failUnpack "text" m
           unpackTextBySize size = do str <- getByteString size
                                      pure $! decodeUtf8 str
 
@@ -88,7 +89,7 @@ instance BoltValue a => BoltValue [a] where
                            | m == list8Code  = toInt <$> getInt8 >>= unpackListBySize
                            | m == list16Code = toInt <$> getInt16be >>= unpackListBySize
                            | m == list32Code = toInt <$> getInt32be >>= unpackListBySize
-                           | otherwise       = fail "expected list"
+                           | otherwise       = failUnpack "list" m
           unpackListBySize size = forM [1..size] $ const unpackT
 
 instance BoltValue a => BoltValue (Map Text a) where
@@ -101,7 +102,7 @@ instance BoltValue a => BoltValue (Map Text a) where
                            | m == dict8Code  = toInt <$> getInt8 >>= unpackDictBySize
                            | m == dict16Code = toInt <$> getInt16be >>= unpackDictBySize
                            | m == dict32Code = toInt <$> getInt32be >>= unpackDictBySize
-                           | otherwise       = fail "expected dict"
+                           | otherwise       = failUnpack "dict" m
           unpackDictBySize = (M.fromList <$>) . unpackPairsBySize
           unpackPairsBySize size = forM [1..size] $ const $ do
                                      !key <- unpackT
@@ -120,7 +121,7 @@ instance BoltValue Structure where
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
                            | m == struct8Code  = toInt <$> getInt8 >>= unpackStructureBySize
                            | m == struct16Code = toInt <$> getInt16be >>= unpackStructureBySize
-                           | otherwise         = fail "expected structure"
+                           | otherwise         = failUnpack "structure" m
           unpackStructureBySize size = Structure <$> getWord8 <*> replicateM size unpackT
 
 instance BoltValue Value where
@@ -142,7 +143,7 @@ instance BoltValue Value where
                            | isList   m = L <$> unpackT
                            | isDict   m = M <$> unpackT
                            | isStruct m = S <$> unpackT
-                           | otherwise  = fail "not value"
+                           | otherwise  = failUnpack "value" m
 
 -- = Structure instances for Neo4j structures
 
@@ -207,3 +208,10 @@ size4  = 2^(4  :: Int)
 size8  = 2^(8  :: Int)
 size16 = 2^(16 :: Int)
 size32 = 2^(32 :: Int)
+
+failUnpack :: (HasCallStack, MonadFail m) => String -> Word8 -> m a
+failUnpack expected got = fail $
+  "expected " <> expected <> ", got: " <> show got
+  <> (if null cs then "" else "\n" <> cs)
+  where
+    cs = prettyCallStack callStack
