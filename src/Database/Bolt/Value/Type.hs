@@ -74,12 +74,12 @@ class ToStructure a where
 -- |The 'BoltValue' class describes values, that can be packed and unpacked for BOLT protocol.
 class BoltValue a where
   -- |Packs a value to 'ByteString'
-  pack :: a -> Put
+  pack :: HasCallStack => a -> Put
   -- |Unpacks in a State monad to get values from single 'ByteString'
-  unpackT :: Get a
+  unpackT :: HasCallStack => Get a
 
 -- |Unpacks a 'ByteString' to selected value
-unpack :: (Monad m, BoltValue a)  => ByteString -> m (Either UnpackError a)
+unpack :: (Monad m, BoltValue a, HasCallStack)  => ByteString -> m (Either UnpackError a)
 unpack = pure . unpackAction unpackT . fromStrict
 
 -- |Old-style unpack that runs 'fail' on error
@@ -90,7 +90,7 @@ unpackF bs = do let result = unpackAction unpackT $ fromStrict bs
                   Left  e -> Fail.fail $ show e
 
 -- |Unpacks a 'ByteString' to selected value by some custom action
-unpackAction :: Get a -> BSL.ByteString -> Either UnpackError a
+unpackAction :: HasCallStack => Get a -> BSL.ByteString -> Either UnpackError a
 unpackAction action bs = case runGetOrFail action bs of
   Left (_, _, err) -> Left $ BinaryError $ T.pack err
   Right (_, _, a) -> Right a
