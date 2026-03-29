@@ -3,16 +3,24 @@ module Database.Bolt
     , BoltError (..), UnpackError (..)
     , connect, close, reset
     , run, runE, queryP, query, queryP_, query_
-    , transact
+    , transact, transactRead
     , (=:), props
     , Pipe
     , BoltCfg (..)
     , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), exact, exactMaybe, at
     , maybeAt, Node (..), Relationship (..), URelationship (..), Path (..)
+    , AccessMode(..), RoutingTable(..), ServerAddress(..)
+    , parseRoutingTable, parseAddress, isExpired
+    , RouterPool, RouterPoolCfg(..)
+    , connectRouterPool, closeRouterPool
+    , runRouterPool, runRouterPoolE, runRouterPoolRead, runRouterPoolReadE
+    , getRoutingTable
     ) where
 
 import           Database.Bolt.Connection hiding (query, queryP)
 import           Database.Bolt.Connection.Pipe
+import           Database.Bolt.Connection.RouterPool
+import           Database.Bolt.Connection.RoutingTable
 import           Database.Bolt.Connection.Type
 import           Database.Bolt.Record
 import           Database.Bolt.Transaction

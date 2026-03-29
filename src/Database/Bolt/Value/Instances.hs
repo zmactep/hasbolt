@@ -27,6 +27,10 @@ import           Data.Text.Encoding   (decodeUtf8, encodeUtf8)
 import           Data.Word
 import           GHC.Stack            (HasCallStack, callStack, prettyCallStack)
 
+-- Note: All PackStream collection/text/bytes size fields use unsigned integer encoding
+-- (getWord8, getWord16be, getWord32be). Only integer *values* use signed encoding.
+-- See: https://neo4j.com/docs/bolt/current/packstream/
+
 instance BoltValue () where
   pack () = putWord8 nullCode
 
@@ -73,9 +77,9 @@ instance BoltValue Text where
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyText m    = unpackTextBySize (getSize m)
-                           | m == text8Code  = toInt <$> getInt8 >>= unpackTextBySize
-                           | m == text16Code = toInt <$> getInt16be >>= unpackTextBySize
-                           | m == text32Code = toInt <$> getInt32be >>= unpackTextBySize
+                           | m == text8Code  = toInt <$> getWord8 >>= unpackTextBySize
+                           | m == text16Code = toInt <$> getWord16be >>= unpackTextBySize
+                           | m == text32Code = toInt <$> getWord32be >>= unpackTextBySize
                            | otherwise       = failUnpack "text" m
           unpackTextBySize size = do str <- getByteString size
                                      pure $! decodeUtf8 str
@@ -86,9 +90,9 @@ instance BoltValue a => BoltValue [a] where
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyList m    = unpackListBySize (getSize m)
-                           | m == list8Code  = toInt <$> getInt8 >>= unpackListBySize
-                           | m == list16Code = toInt <$> getInt16be >>= unpackListBySize
-                           | m == list32Code = toInt <$> getInt32be >>= unpackListBySize
+                           | m == list8Code  = toInt <$> getWord8 >>= unpackListBySize
+                           | m == list16Code = toInt <$> getWord16be >>= unpackListBySize
+                           | m == list32Code = toInt <$> getWord32be >>= unpackListBySize
                            | otherwise       = failUnpack "list" m
           unpackListBySize size = forM [1..size] $ const unpackT
 
@@ -99,15 +103,31 @@ instance BoltValue a => BoltValue (Map Text a) where
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyDict m    = unpackDictBySize (getSize m)
-                           | m == dict8Code  = toInt <$> getInt8 >>= unpackDictBySize
-                           | m == dict16Code = toInt <$> getInt16be >>= unpackDictBySize
-                           | m == dict32Code = toInt <$> getInt32be >>= unpackDictBySize
+                           | m == dict8Code  = toInt <$> getWord8 >>= unpackDictBySize
+                           | m == dict16Code = toInt <$> getWord16be >>= unpackDictBySize
+                           | m == dict32Code = toInt <$> getWord32be >>= unpackDictBySize
                            | otherwise       = failUnpack "dict" m
           unpackDictBySize = (M.fromList <$>) . unpackPairsBySize
           unpackPairsBySize size = forM [1..size] $ const $ do
                                      !key <- unpackT
                                      !value <- unpackT
                                      pure (key, value)
+
+-- |Pack\/unpack raw byte arrays using PackStream Bytes format (markers 0xCC\/0xCD\/0xCE).
+-- Unlike Text\/List\/Dict, Bytes has no "tiny" variant — sizes always use an explicit length prefix.
+-- See: https://neo4j.com/docs/bolt/current/packstream/#data-type-bytes
+instance BoltValue ByteString where
+  pack bs | len < size8  = putWord8 bytes8Code >> putWord8 (fromIntegral len) >> putByteString bs
+          | len < size16 = putWord8 bytes16Code >> putWord16be (fromIntegral len) >> putByteString bs
+          | len < size32 = putWord8 bytes32Code >> putWord32be (fromIntegral len) >> putByteString bs
+          | otherwise    = error "Cannot pack so large byte array"
+    where len = B.length bs
+
+  unpackT = getWord8 >>= unpackByMarker
+    where unpackByMarker m | m == bytes8Code  = toInt <$> getWord8 >>= getByteString
+                           | m == bytes16Code = toInt <$> getWord16be >>= getByteString
+                           | m == bytes32Code = toInt <$> getWord32be >>= getByteString
+                           | otherwise        = failUnpack "bytes" m
 
 instance BoltValue Structure where
   pack (Structure sig lst) | size < size4  = putWord8 (structConst + fromIntegral size) >> pData
@@ -119,30 +139,32 @@ instance BoltValue Structure where
 
   unpackT = getWord8 >>= unpackByMarker
     where unpackByMarker m | isTinyStruct m    = unpackStructureBySize (getSize m)
-                           | m == struct8Code  = toInt <$> getInt8 >>= unpackStructureBySize
-                           | m == struct16Code = toInt <$> getInt16be >>= unpackStructureBySize
+                           | m == struct8Code  = toInt <$> getWord8 >>= unpackStructureBySize
+                           | m == struct16Code = toInt <$> getWord16be >>= unpackStructureBySize
                            | otherwise         = failUnpack "structure" m
           unpackStructureBySize size = Structure <$> getWord8 <*> replicateM size unpackT
 
 instance BoltValue Value where
-  pack (N n) = pack n
-  pack (B b) = pack b
-  pack (I i) = pack i
-  pack (F d) = pack d
-  pack (T t) = pack t
-  pack (L l) = pack l
-  pack (M m) = pack m
-  pack (S s) = pack s
+  pack (N n)     = pack n
+  pack (B b)     = pack b
+  pack (I i)     = pack i
+  pack (F d)     = pack d
+  pack (T t)     = pack t
+  pack (L l)     = pack l
+  pack (M m)     = pack m
+  pack (S s)     = pack s
+  pack (Bytes b) = pack b
 
   unpackT = lookAhead getWord8 >>= unpackByMarker
-    where unpackByMarker m | isNull   m = N <$> unpackT
-                           | isBool   m = B <$> unpackT
-                           | isInt    m = I <$> unpackT
-                           | isDouble m = F <$> unpackT
-                           | isText   m = T <$> unpackT
-                           | isList   m = L <$> unpackT
-                           | isDict   m = M <$> unpackT
-                           | isStruct m = S <$> unpackT
+    where unpackByMarker m | isNull   m = N     <$> unpackT
+                           | isBool   m = B     <$> unpackT
+                           | isInt    m = I     <$> unpackT
+                           | isDouble m = F     <$> unpackT
+                           | isText   m = T     <$> unpackT
+                           | isList   m = L     <$> unpackT
+                           | isDict   m = M     <$> unpackT
+                           | isBytes  m = Bytes <$> unpackT
+                           | isStruct m = S     <$> unpackT
                            | otherwise  = failUnpack "value" m
 
 -- = Structure instances for Neo4j structures
@@ -150,9 +172,11 @@ instance BoltValue Value where
 instance FromStructure Node where
   fromStructure struct =
     case struct of
-      (Structure sig [I nid, L vlbls, M prps]) | sig == sigNode -> flip (Node nid) prps <$> cnvT vlbls
-      _                                                         -> throwError $ Not "Node"
+      (Structure sig [I nid, L vlbls, M prps, T eid]) | sig == sigNode -> mkNode nid prps eid <$> cnvT vlbls
+      (Structure sig [I nid, L vlbls, M prps])        | sig == sigNode -> mkNode nid prps ""  <$> cnvT vlbls
+      _                                                                -> throwError $ Not "Node"
     where
+      mkNode nid prps eid lbls = Node nid lbls prps eid
       cnvT []       = pure []
       cnvT (T x:xs) = (x:) <$> cnvT xs
       cnvT _        = throwError NotString
@@ -160,14 +184,16 @@ instance FromStructure Node where
 instance FromStructure Relationship where
   fromStructure struct =
     case struct of
-      (Structure sig [I rid, I sni, I eni, T rt, M rp]) | sig == sigRel -> pure $ Relationship rid sni eni rt rp
-      _                                                                 -> throwError $ Not "Relationship"
+      (Structure sig [I rid, I sni, I eni, T rt, M rp, T eid, T sneid, T eneid]) | sig == sigRel -> pure $ Relationship rid sni eni rt rp eid sneid eneid
+      (Structure sig [I rid, I sni, I eni, T rt, M rp])                          | sig == sigRel -> pure $ Relationship rid sni eni rt rp "" "" ""
+      _                                                                                          -> throwError $ Not "Relationship"
 
 instance FromStructure URelationship where
   fromStructure struct =
     case struct of
-      (Structure sig [I rid, T rt, M rp]) | sig == sigURel -> pure $ URelationship rid rt rp
-      _                                                    -> throwError $ Not "URelationship"
+      (Structure sig [I rid, T rt, M rp, T eid]) | sig == sigURel -> pure $ URelationship rid rt rp eid
+      (Structure sig [I rid, T rt, M rp])        | sig == sigURel -> pure $ URelationship rid rt rp ""
+      _                                                           -> throwError $ Not "URelationship"
 
 instance FromStructure Path where
   fromStructure struct =

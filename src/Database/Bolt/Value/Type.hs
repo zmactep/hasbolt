@@ -104,6 +104,8 @@ data Value = N ()
            | L [Value]
            | M (Map Text Value)
            | S Structure
+           | Bytes ByteString -- ^Raw byte data. PackStream Bytes type.
+                              -- See: https://neo4j.com/docs/bolt/current/packstream/#data-type-bytes
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData)
 
@@ -150,6 +152,11 @@ instance IsValue a => IsValue (Maybe a) where
   toValue (Just a) = toValue a
   toValue _        = N ()
 
+-- |Allows 'ByteString' to be used as a BOLT value via the 'Bytes' constructor.
+-- See: https://neo4j.com/docs/bolt/current/packstream/#data-type-bytes
+instance IsValue ByteString where
+  toValue = Bytes
+
 instance IsValue (Map Text Value) where
   toValue = M
 
@@ -165,23 +172,28 @@ props = fromList
 
 -- == Neo4j subjects
 
-data Node = Node { nodeIdentity :: Int             -- ^Neo4j node identifier
-                 , labels       :: [Text]          -- ^Set of node labels (types)
-                 , nodeProps    :: Map Text Value  -- ^Dict of node properties
+data Node = Node { nodeIdentity  :: Int             -- ^Neo4j node identifier
+                 , labels        :: [Text]          -- ^Set of node labels (types)
+                 , nodeProps     :: Map Text Value  -- ^Dict of node properties
+                 , nodeElementId :: Text            -- ^Element ID string (v5+, empty for v3)
                  }
   deriving (Show, Eq)
 
-data Relationship = Relationship { relIdentity :: Int            -- ^Neo4j relationship identifier
-                                 , startNodeId :: Int            -- ^Identifier of start node
-                                 , endNodeId   :: Int            -- ^Identifier of end node
-                                 , relType     :: Text           -- ^Relationship type
-                                 , relProps    :: Map Text Value -- ^Dict of relationship properties
+data Relationship = Relationship { relIdentity        :: Int            -- ^Neo4j relationship identifier
+                                 , startNodeId        :: Int            -- ^Identifier of start node
+                                 , endNodeId          :: Int            -- ^Identifier of end node
+                                 , relType            :: Text           -- ^Relationship type
+                                 , relProps           :: Map Text Value -- ^Dict of relationship properties
+                                 , relElementId       :: Text           -- ^Element ID string (v5+, empty for v3)
+                                 , startNodeElementId :: Text           -- ^Start node element ID (v5+, empty for v3)
+                                 , endNodeElementId   :: Text           -- ^End node element ID (v5+, empty for v3)
                                  }
   deriving (Show, Eq)
 
-data URelationship = URelationship { urelIdentity :: Int            -- ^Neo4j relationship identifier
-                                   , urelType     :: Text           -- ^Relationship type
-                                   , urelProps    :: Map Text Value -- ^Dict of relationship properties
+data URelationship = URelationship { urelIdentity  :: Int            -- ^Neo4j relationship identifier
+                                   , urelType      :: Text           -- ^Relationship type
+                                   , urelProps     :: Map Text Value -- ^Dict of relationship properties
+                                   , urelElementId :: Text           -- ^Element ID string (v5+, empty for v3)
                                    }
   deriving (Show, Eq)
 
