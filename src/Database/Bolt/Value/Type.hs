@@ -160,6 +160,59 @@ instance IsValue ByteString where
 instance IsValue (Map Text Value) where
   toValue = M
 
+-- | IsValue instances for tuples (2-15 elements)
+-- Tuples are converted to BOLT lists.
+
+instance (IsValue a, IsValue b) => IsValue (a, b) where
+  toValue (a, b) = L [toValue a, toValue b]
+
+instance (IsValue a, IsValue b, IsValue c) => IsValue (a, b, c) where
+  toValue (a, b, c) = L [toValue a, toValue b, toValue c]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d) => IsValue (a, b, c, d) where
+  toValue (a, b, c, d) = L [toValue a, toValue b, toValue c, toValue d]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e) => IsValue (a, b, c, d, e) where
+  toValue (a, b, c, d, e) = L [toValue a, toValue b, toValue c, toValue d, toValue e]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f) => IsValue (a, b, c, d, e, f) where
+  toValue (a, b, c, d, e, f) = L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g) => IsValue (a, b, c, d, e, f, g) where
+  toValue (a, b, c, d, e, f, g) = L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h) => IsValue (a, b, c, d, e, f, g, h) where
+  toValue (a, b, c, d, e, f, g, h) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i) => IsValue (a, b, c, d, e, f, g, h, i) where
+  toValue (a, b, c, d, e, f, g, h, i) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j) => IsValue (a, b, c, d, e, f, g, h, i, j) where
+  toValue (a, b, c, d, e, f, g, h, i, j) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k) => IsValue (a, b, c, d, e, f, g, h, i, j, k) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m, IsValue n) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m, toValue n]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m, IsValue n, IsValue o) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m, toValue n, toValue o]
+
 -- |Wrap key-value pair with 'Value' datatype
 (=:) :: IsValue a => Text -> a -> (Text, Value)
 (=:) key val = (key, toValue val)
