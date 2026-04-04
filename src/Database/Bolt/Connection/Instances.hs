@@ -9,13 +9,15 @@ import           Database.Bolt.Connection.Type
 import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Type
 
-import           Control.Monad.Except           (MonadError (..))
-import           Data.Map.Strict                (Map, insert, fromList, union, empty)
-import qualified Data.Map.Strict                as M
-import           Data.Text                      (Text)
-import qualified Data.Text                      as T
-import           Data.Word                      (Word32)
-import           GHC.Stack                      (HasCallStack)
+import           Control.Monad.Except (MonadError (..))
+import           Data.Map.Strict      (Map, empty, fromList, insert, union)
+import qualified Data.Map.Strict      as M
+import           Data.Text            (Text)
+import qualified Data.Text            as T
+import           Data.Version         (showVersion)
+import           Data.Word            (Word32)
+import           GHC.Stack            (HasCallStack)
+import           System.Info          (arch, compilerName, compilerVersion, os)
 
 instance ToStructure Request where
   toStructure RequestInit{..}        = Structure sigInit $
@@ -79,38 +81,44 @@ createAuthToken BoltCfg{..} = AuthToken { scheme      = authType
 
 -- |Build the extras map for a HELLO message.
 --
--- * BOLT v3\/v4: includes @user_agent@ and inline authentication credentials.
--- * BOLT v5.0+: includes @user_agent@ and optional @routing@ context, but omits
---   credentials (authentication is handled by a separate LOGON message).
--- * BOLT v5.3+: additionally includes @bolt_agent@ with a structured product identifier.
+-- * BOLT v3:: includes @user_agent@ and inline authentication credentials.
+-- * BOLT v5.6+: includes @user_agent@ and optional @routing@ context, but omits
+--   credentials (authentication is handled by a separate LOGON message),
+--   and additionally includes @bolt_agent@ with a structured product identifier.
 helloMap :: Text -> AuthToken -> Word32 -> Maybe (Map Text Value) -> Map Text Value
 helloMap userAgent authToken serverVersion mRouting
-  | isV5 serverVersion =
-      let base = fromList ["user_agent" =: userAgent]
-          withAgent = if isV5_3 serverVersion
-                      then insert "bolt_agent" (M (fromList ["product" =: userAgent])) base
-                      else base
+  | isV5_6 serverVersion =
+      let base = fromList
+            [ "user_agent" =: userAgent
+            , "bolt_agent" =: (fromList
+                [ "product" =: userAgent
+                , "platform" =: (arch <> "-" <> os)
+                , "language" =: ("Haskell/2010" :: Text)
+                , "language_details" =: (compilerName <> "-" <> showVersion compilerVersion)
+                ])
+            ]
       in case mRouting of
-           Just ctx -> insert "routing" (M ctx) withAgent
-           Nothing  -> withAgent
+           Just ctx -> insert "routing" (M ctx) base
+           Nothing  -> base
   | otherwise = insert "user_agent" (T userAgent) (tokenMap authToken)
 
+-- |Credentials for @HELLO@ message in BOLT v3 protocol.
 tokenMap :: AuthToken -> Map Text Value
 tokenMap at = fromList [ "scheme"     =: scheme at
                        , "principal"   =: principal at
                        , "credentials" =: credentials at
                        ]
 
+-- |For BOLT v5.6+: map with @notifications_minimum_severity@ and
+-- @notifications_disabled_classifications@ parameters.
 notifExtra :: Word32 -> Maybe Text -> [Text] -> Map Text Value
 notifExtra ver msev disabled
-  | not (isV5_2 ver) = empty
+  | not (isV5_6 ver) = empty
   | otherwise =
       let sevEntry = case msev of
                        Just s  -> fromList ["notifications_minimum_severity" =: s]
                        Nothing -> empty
-          disKey   = if isV5_6 ver
-                     then "notifications_disabled_classifications"
-                     else "notifications_disabled_categories"
+          disKey   = "notifications_disabled_classifications"
           disEntry = if null disabled then empty
                      else fromList [(disKey, L (map T disabled))]
       in sevEntry `union` disEntry

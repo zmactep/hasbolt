@@ -64,7 +64,7 @@ query' cypher = queryP' cypher empty
 queryP_ :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m ()
 queryP_ cypher params = do pipe <- ask
                            void $ sendRequest cypher params empty
-                           let discardReq = if isV5 (pipe_version pipe)
+                           let discardReq = if isV5_6 (pipe_version pipe)
                                             then RequestDiscard (fromList ["n" =: (-1 :: Int)])
                                             else RequestDiscardAll
                            liftE $ do flush pipe discardReq
@@ -83,7 +83,7 @@ querySL strict cypher params = do keys <- pullKeys cypher params empty
 pullKeys :: MonadIO m => HasCallStack => Text -> Map Text Value -> Map Text Value -> BoltActionT m [Text]
 pullKeys cypher params ext = do pipe <- ask
                                 status <- sendRequest cypher params ext
-                                let pullReq = if isV5 (pipe_version pipe)
+                                let pullReq = if isV5_6 (pipe_version pipe)
                                               then RequestPull (fromList ["n" =: (-1 :: Int)])
                                               else RequestPullAll
                                 liftE $ flush pipe pullReq

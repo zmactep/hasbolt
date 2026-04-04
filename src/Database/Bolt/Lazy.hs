@@ -1,3 +1,12 @@
+{- | Lazy API
+
+This module exposes various query functions that use 'System.IO.Unsafe.unsafeInterleaveIO'
+to make fetching result lazy.
+
+When using them, do not forget to read all the records before you send a next query.
+
+__Important__: this is not compatible with t'Database.Bolt.RouterPool'.
+-}
 module Database.Bolt.Lazy
     ( BoltActionT
     , BoltError (..), UnpackError (..)
@@ -9,12 +18,6 @@ module Database.Bolt.Lazy
     , BoltCfg (..)
     , Value (..), IsValue (..), Structure (..), Record, RecordValue (..), exact, exactMaybe, at
     , Node (..), Relationship (..), URelationship (..), Path (..)
-    , AccessMode(..), RoutingTable(..), ServerAddress(..)
-    , parseRoutingTable, parseAddress, isExpired
-    , RouterPool, RouterPoolCfg(..)
-    , connectRouterPool, closeRouterPool
-    , runRouterPool, runRouterPoolE, runRouterPoolRead, runRouterPoolReadE
-    , getRoutingTable
     ) where
 
 import           Database.Bolt.Connection

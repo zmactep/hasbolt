@@ -85,7 +85,7 @@ import           Database.Bolt.Connection.Pipe         (close, connectWithRoutin
 import           Database.Bolt.Connection.RoutingTable
 import           Database.Bolt.Connection.Type
 
-import           Database.Bolt.Value.Helpers (isV4_3)
+import           Database.Bolt.Value.Helpers (isV5_6)
 import           Database.Bolt.Value.Type    (Value)
 
 import           Control.Concurrent        (threadDelay)
@@ -173,10 +173,11 @@ connectRouterPool poolCfg@RouterPoolCfg{..} = liftIO $ do
     -- Bootstrap: get initial routing table
     bootstrapPipe <- connectWithRouting cfg (Just routingCtx)
 
-    -- ROUTE message requires BOLT v4.3+; fail clearly if server negotiated older version
-    when (not (isV4_3 (pipe_version bootstrapPipe))) $ do
+    -- ROUTE message requires BOLT v4.3+; fail clearly if server negotiated older version.
+    -- We check for 5.6+, because we do not support older versions anyway.
+    when (not (isV5_6 (pipe_version bootstrapPipe))) $ do
       close bootstrapPipe
-      throwIO $ RoutingError "Router pool requires BOLT v4.3+ but server negotiated an older version"
+      throwIO $ RoutingError "hasbolt supports Router pool with BOLT v5.6+ but server negotiated an older version"
 
     rtResult <- runE bootstrapPipe $
                   sendRawRequest (RequestRoute routingCtx [] (dbExtra (database cfg)))

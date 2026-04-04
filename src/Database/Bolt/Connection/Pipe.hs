@@ -12,7 +12,7 @@ import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type            (BoltValue (pack, unpackT),
                                                       FromStructure (fromStructure),
                                                       ToStructure (toStructure), Value,
-                                                      unpackAction)
+                                                      unpackAction, (=:))
 
 import           Control.Exception                   (SomeException, catch, throwIO)
 import           Control.Monad                       (forM_, unless, void, when)
@@ -25,7 +25,7 @@ import qualified Data.ByteString                     as B (concat, length)
 import qualified Data.ByteString.Lazy                as BSL
 import qualified Data.ByteString.Lazy.Internal       as BSL
 import           Data.Int                            (Int64)
-import           Data.Map.Strict                     (Map)
+import           Data.Map.Strict                     (Map, fromList)
 import           Data.Text                           (Text)
 import           Data.Word                           (Word16, Word32)
 import           GHC.Stack                           (HasCallStack)
@@ -51,13 +51,9 @@ connectWithRouting cfg mRouting = makeIO connectWithRouting' cfg
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
 close pipe = liftIO $ do
-    sendGoodbye `catch` ignoreAll
+    makeIO (`flush` RequestGoodbye) pipe `catch` ignoreAll
     C.close $ connection pipe
   where
-    sendGoodbye :: IO ()
-    sendGoodbye = do
-      when (isV5 $ pipe_version pipe) $ makeIO (`flush` RequestLogoff) pipe
-      when (isV3 $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
     ignoreAll :: SomeException -> IO ()
     ignoreAll _ = pure ()
 
@@ -127,40 +123,52 @@ fetch pipe = do bs <- chunks
 --
 -- __All versions:__ send magic preamble and version proposal, receive negotiated version.
 --
--- __BOLT v3\/v4:__ send @HELLO@ with @user_agent@ and inline credentials (@scheme@,
+-- __BOLT v3:__ send @HELLO@ with @user_agent@ and inline credentials (@scheme@,
 -- @principal@, @credentials@). A single @SUCCESS@ completes authentication.
 --
--- __BOLT v5+:__ send @HELLO@ with @user_agent@ (and optional @routing@ context,
+-- __BOLT v5.6+:__ send @HELLO@ with @user_agent@ (and optional @routing@ context,
 -- @bolt_agent@ from v5.3) but /without/ credentials. Then send a separate @LOGON@
 -- message carrying the credentials. Both must return @SUCCESS@.
 --
 -- When the client proposes v5+, a fallback to v3 is also offered in the version
 -- proposal so the server can downgrade if it doesn't support v5.
+--
+-- BOLT v2, v4 and versions of BOLT 5 lower than 5.6 are not supported.
 handshake :: MonadPipe m => HasCallStack => Pipe -> BoltCfg -> Maybe (Map Text Value) -> m Pipe
 handshake pipe bcfg mRouting = do let conn = connection pipe
                                   C.send conn (encodeStrict $ magic bcfg)
                                   C.send conn (boltVersionProposal bcfg)
+
                                   serverVersion <- decode <$> recvChunk conn 4
-                                  unless (versionAccepted (version bcfg) serverVersion) $
+                                  unless (versionAccepted serverVersion) $
                                     throwError UnsupportedServerVersion
+
                                   let pipe' = pipe { pipe_version = serverVersion }
                                   flush pipe' (createInit bcfg serverVersion mRouting)
+
                                   response <- fetch pipe'
+
                                   unless (isSuccess response) $
                                     throwError AuthentificationFailed
-                                  when (isV5 serverVersion) $ do
+
+                                  when (isV5_6 serverVersion) $ do
                                     flush pipe' (RequestLogon (createAuthToken bcfg))
                                     logonResp <- fetch pipe'
                                     unless (isSuccess logonResp) $
                                       throwError AuthentificationFailed
+
                                   pure pipe'
 
--- |Check if server version is acceptable given our proposed version
-versionAccepted :: Word32 -> Word32 -> Bool
-versionAccepted _proposed server = server /= 0
+-- |Check if server version is acceptable given our supported range.
+versionAccepted :: Word32 -> Bool
+versionAccepted server = server /= 0 && (server == 3 || isV5_6 server)
 
+-- | Propose default version from 'BoltCfg' instance, but also propose version 3
+-- to support old servers.
+--
+-- Routing connection will fail if server negotiates version lower than 5.6.
 boltVersionProposal :: BoltCfg -> ByteString
-boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0 :: Word32, 0]
+boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 3, 0, 0 :: Word32]
 
 recvChunk :: MonadPipe m => HasCallStack => ConnectionWithTimeout -> Word16 -> m BSL.ByteString
 recvChunk conn size = helper (fromIntegral size)

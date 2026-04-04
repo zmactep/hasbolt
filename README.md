@@ -4,7 +4,10 @@ HasBOLT
 [![GitHub Build](https://github.com/zmactep/hasbolt/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/zmactep/hasbolt/actions/workflows/haskell-ci.yml)
 [![hackage](https://img.shields.io/hackage/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
 
-Haskell driver for Neo4j 3–5 (BOLT protocol).
+Haskell driver for Neo4j, BOLT protocol versions 3 and 5.6+.
+
+This library skips BOLT 4 entirely and doesn't implement differences between various 5.x minor
+versions, so connection will fail if the server does not accept version proposal.
 
 Documentation
 -------------
@@ -110,12 +113,13 @@ Notes
 
 * Do not forget to import `Data.Default` to use default connection configuration.
 * `OverloadedStrings` are very welcome, as the library doesn't use `String`s at all.
-* You can use `Database.Bolt.Lazy` to work with lazy IO. In this case do not forget to read all the records before you send a next query.
+* You can use `Database.Bolt.Lazy` to work with lazy IO. In this case do not forget to read all the
+  records before you send a next query. *Important*: not compatible with RouterPool.
 * See [`test/TransactionSpec.hs`](https://github.com/zmactep/hasbolt/blob/master/test/TransactionSpec.hs) for an example of transactions usage.
 * Feel free to implement your own serialization procedures with `Database.Bolt.Serialization` module import.
 * For Neo4j clusters, use the built-in `RouterPool` (`connectRouterPool`/`runRouterPool`) which handles topology discovery, connection pooling, and read/write routing. For single-server setups, pipes work great with [resource-pool](https://hackage.haskell.org/package/resource-pool).
-* The default BOLT protocol version is v5 (5.0–5.8), which works with Neo4j 5.x. The driver also supports older servers — the handshake will negotiate v3 if the server doesn't support v5.
-* For neo4j 3.4+ spatial/temporal types, use `version = 2` or greater in connection configuration. See [new datatypes](#new-types).
+* The default BOLT protocol version is v5 (5.6–5.8), which works with Neo4j 5.x. The driver also supports older servers — the handshake will negotiate v3 if the server doesn't support v5.
+* For neo4j 3.4+ spatial/temporal types, see [new datatypes](#new-types).
 * You can use both syntax variants to create properties dictionaries: `fromList [("born", I 1962)]` or `props ["born" =: 1962]`.
 * Note that you have to make a type hint for `Text` values in the second construction, as Haskell cannot deduce it on its own.
 * Use `$param` syntax for Cypher parameters (the old `{param}` syntax was removed in Neo4j 5).
@@ -123,9 +127,10 @@ Notes
 New types
 ---------
 
-Neo4j 3.4+ implements BOLT v2 protocol with spatial and temporal data types. To use them, set
-`version = 2` or greater in connection configuration. All of them are just structures with different
-signatures and fields.
+Neo4j 3.4+ implements BOLT v2 protocol with spatial and temporal data types. They are already
+available in `hasbolt`, since lowest supported version is BOLT v3.
+
+All of them are just structures with different signatures and fields.
 
 * Point2D
 ```haskell
@@ -206,7 +211,7 @@ Codes of Coordinate Reference Systems:
 
 ```haskell
 λ> :set -XScopedTypeVariables 
-λ> pipe <- connect $ def { user = "neo4j", password = "neo4j", version = 2 }
+λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
 λ> point :: Value <- run pipe $ do records <- query "RETURN point({x: 1, y: 2, z: 3}) as point"
                                    (head records) `at` "point"
 λ> point 

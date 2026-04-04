@@ -81,13 +81,13 @@ liftE = BoltActionT . lift
 
 -- |Configuration of driver connection
 data BoltCfg = BoltCfg { magic              :: Word32      -- ^'6060B017' value
-                       , version            :: Word32      -- ^Major version number (deafult 0x00070805 for 5.0 through 5.8)
-                       , userAgent          :: Text        -- ^Driver user agent
+                       , version            :: Word32      -- ^Major version number (default 0x00020805 for 5.6 through 5.8)
+                       , userAgent          :: Text        -- ^Driver user agent (default "hasbolt/1.8")
                        , maxChunkSize       :: Word16      -- ^Maximum chunk size of request
                        , socketTimeout      :: Int         -- ^Driver socket timeout in seconds
                        , host               :: String      -- ^Neo4j server hostname
                        , port               :: Int         -- ^Neo4j server port
-                       , authType           :: Text        -- ^Neo4j auth schema
+                       , authType           :: Text        -- ^Neo4j auth schema (@none@, @basic@, @bearer@ or @kerberos@, default: @basic). Currently only @basic@ is tested.
                        , user               :: Text        -- ^Neo4j user
                        , password           :: Text        -- ^Neo4j password
                        , secure             :: Bool        -- ^Use TLS or not
@@ -99,7 +99,7 @@ data BoltCfg = BoltCfg { magic              :: Word32      -- ^'6060B017' value
 
 instance Default BoltCfg where
   def = BoltCfg { magic              = 1616949271
-                , version            = 0x00070805
+                , version            = 0x00020805
                 , userAgent          = "hasbolt/1.8"
                 , maxChunkSize       = 65535
                 , socketTimeout      = 5
@@ -187,7 +187,7 @@ data Request = RequestInit
              | RequestLogon
                  { logonToken  :: AuthToken
                  }
-               -- | Introduced in v5.1. Sent before GOODBYE on close.
+               -- | Introduced in v5.1.
              | RequestLogoff
                -- | Introduced in v5.4. Reports driver API usage.
              | RequestTelemetry

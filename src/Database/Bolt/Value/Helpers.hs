@@ -82,11 +82,6 @@ isStruct = liftA3 (\x y z -> x || y || z) (== struct8Code) (== struct16Code) isT
 isV3 :: Word32 -> Bool
 isV3 v = (v .&. 255) >= 3
 
--- |Checks for BOLT v5.0+, which introduced separate Hello\/Logon authentication
--- and PULL\/DISCARD with explicit count parameters.
-isV5 :: Word32 -> Bool
-isV5 = isV5_N 1
-
 versionMinor :: Word32 -> Word32
 versionMinor v = (v `shiftR` 8) .&. 0xFF
 
@@ -96,21 +91,7 @@ isV5_N n v = let major = v .&. 0xFF
                  minor = versionMinor v
              in major > 5 || (major == 5 && minor >= n)
 
--- |Checks for BOLT v4.3+, which introduced the ROUTE message.
-isV4_3 :: Word32 -> Bool
-isV4_3 v = let major = v .&. 0xFF
-               minor = versionMinor v
-           in major >= 5 || (major == 4 && minor >= 3)
-
--- |Checks for BOLT v5.2+, which added notification filtering.
-isV5_2 :: Word32 -> Bool
-isV5_2 = isV5_N 2
-
--- |Checks for BOLT v5.3+, which added @bolt_agent@ in HELLO.
-isV5_3 :: Word32 -> Bool
-isV5_3 = isV5_N 3
-
--- |Checks for BOLT v5.6+, which renamed notification categories to classifications.
+-- |Checks for BOLT v5.6+, which is the minimal supported 5.x version.
 isV5_6 :: Word32 -> Bool
 isV5_6 = isV5_N 6
 

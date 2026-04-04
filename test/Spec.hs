@@ -24,7 +24,7 @@ import           Database.Bolt.Connection.RouterPool (IdlePipe (..), PoolState (
 import           Database.Bolt.Connection.Type       (AuthToken (..), Request (..), Response (..),
                                                       ResponseError (..))
 import           Database.Bolt.Serialization
-import           Database.Bolt.Value.Helpers         (isV3, isV4_3, isV5, isV5_2, isV5_3, isV5_6)
+import           Database.Bolt.Value.Helpers         (isV3, isV5_6)
 
 import           Data.Bits          (shiftR, (.&.))
 import           Data.Default       (def)
@@ -254,7 +254,7 @@ v5Tests =
 
 v58Tests :: Spec
 v58Tests =
-  describe "Bolt 5.2-5.8" $ do
+  describe "Bolt version checks" $ do
     describe "version checks (real library functions)" $ do
       it "isV3 returns True for v3" $
         isV3 3 `shouldBe` True
@@ -262,34 +262,10 @@ v58Tests =
         isV3 2 `shouldBe` False
       it "isV3 returns True for v5.1" $
         isV3 0x0105 `shouldBe` True
-      it "isV5 returns True for v5.1" $
-        isV5 0x0105 `shouldBe` True
-      it "isV5 returns False for v3" $
-        isV5 3 `shouldBe` False
-      it "isV5 returns False for v4.3" $
-        isV5 0x0304 `shouldBe` False
-      it "isV4_3 returns True for v4.3" $
-        isV4_3 0x0304 `shouldBe` True
-      it "isV4_3 returns True for v5.0" $
-        isV4_3 0x0005 `shouldBe` True
-      it "isV4_3 returns False for v4.2" $
-        isV4_3 0x0204 `shouldBe` False
-      it "isV5_2 returns False for v5.1" $
-        isV5_2 0x0105 `shouldBe` False
-      it "isV5_2 returns True for v5.2" $
-        isV5_2 0x0205 `shouldBe` True
-      it "isV5_3 returns False for v5.1" $
-        isV5_3 0x0105 `shouldBe` False
-      it "isV5_3 returns True for v5.3" $
-        isV5_3 0x0305 `shouldBe` True
-      it "isV5_3 returns True for v5.8" $
-        isV5_3 0x0805 `shouldBe` True
       it "isV5_6 returns False for v5.3" $
         isV5_6 0x0305 `shouldBe` False
       it "isV5_6 returns True for v5.6" $
         isV5_6 0x0605 `shouldBe` True
-      it "isV5 returns True for major > 5" $
-        isV5 6 `shouldBe` True
 
     describe "large size roundtrips (unsigned size bytes)" $ do
       it "roundtrips text >= 128 bytes (TEXT_8 with size >= 0x80)" $ do
@@ -330,9 +306,9 @@ v58Tests =
         result `shouldBe` Right bsVal
 
     describe "BoltCfg defaults" $ do
-      it "default version is 5.8 with range" $ do
+      it "default version is 5.6-5.8 range" $ do
         let cfg = def :: BoltCfg
-        version cfg `shouldBe` (0x00070805 :: Word32)
+        version cfg `shouldBe` (0x00020805 :: Word32)
       it "default userAgent is hasbolt/1.8" $ do
         let cfg = def :: BoltCfg
         userAgent cfg `shouldBe` T.pack "hasbolt/1.8"
@@ -523,27 +499,26 @@ helloMapTests =
       M.lookup "routing" m `shouldBe` Nothing
       M.lookup "bolt_agent" m `shouldBe` Nothing
 
-    it "v5.1: includes user_agent, omits credentials" $ do
-      let m = helloMap "hasbolt/1.8" auth 0x0105 Nothing
+    it "v5.6: includes user_agent, omits credentials" $ do
+      let m = helloMap "hasbolt/1.8" auth 0x0605 Nothing
       M.lookup "user_agent" m `shouldBe` Just (T "hasbolt/1.8")
       M.lookup "scheme" m `shouldBe` Nothing
       M.lookup "credentials" m `shouldBe` Nothing
-      M.lookup "bolt_agent" m `shouldBe` Nothing
 
-    it "v5.1 with routing context" $ do
-      let m = helloMap "hasbolt/1.8" auth 0x0105 (Just routingCtx)
+    it "v5.6 with routing context" $ do
+      let m = helloMap "hasbolt/1.8" auth 0x0605 (Just routingCtx)
       M.lookup "routing" m `shouldBe` Just (M routingCtx)
       M.lookup "credentials" m `shouldBe` Nothing
 
-    it "v5.3: includes bolt_agent" $ do
-      let m = helloMap "hasbolt/1.8" auth 0x0305 Nothing
+    it "v5.6: includes bolt_agent" $ do
+      let m = helloMap "hasbolt/1.8" auth 0x0605 Nothing
       case M.lookup "bolt_agent" m of
         Just (M agent) -> M.lookup "product" agent `shouldBe` Just (T "hasbolt/1.8")
         _              -> expectationFailure "bolt_agent missing or wrong type"
       M.lookup "credentials" m `shouldBe` Nothing
 
-    it "v5.3 with routing context includes both bolt_agent and routing" $ do
-      let m = helloMap "hasbolt/1.8" auth 0x0305 (Just routingCtx)
+    it "v5.6 with routing context includes both bolt_agent and routing" $ do
+      let m = helloMap "hasbolt/1.8" auth 0x0605 (Just routingCtx)
       M.lookup "bolt_agent" m `shouldSatisfy` (/= Nothing)
       M.lookup "routing" m `shouldBe` Just (M routingCtx)
 
@@ -557,38 +532,32 @@ helloMapTests =
 notifExtraTests :: Spec
 notifExtraTests =
   describe "notifExtra" $ do
-    it "returns empty for pre-v5.2" $ do
+    it "returns empty for pre-v5.6" $ do
       notifExtra 0x0105 (Just "WARNING") ["HINT"] `shouldBe` M.empty
       notifExtra 3 (Just "OFF") [] `shouldBe` M.empty
+      notifExtra 0x0205 (Just "WARNING") [] `shouldBe` M.empty
 
-    it "v5.2: includes severity when present" $ do
-      let m = notifExtra 0x0205 (Just "WARNING") []
+    it "v5.6: includes severity when present" $ do
+      let m = notifExtra 0x0605 (Just "WARNING") []
       M.lookup "notifications_minimum_severity" m `shouldBe` Just (T "WARNING")
 
-    it "v5.2: omits severity when Nothing" $ do
-      let m = notifExtra 0x0205 Nothing []
+    it "v5.6: omits severity when Nothing" $ do
+      let m = notifExtra 0x0605 Nothing []
       M.lookup "notifications_minimum_severity" m `shouldBe` Nothing
-
-    it "v5.2: uses notifications_disabled_categories key" $ do
-      let m = notifExtra 0x0205 Nothing ["HINT", "DEPRECATION"]
-      case M.lookup "notifications_disabled_categories" m of
-        Just (L cats) -> cats `shouldBe` [T "HINT", T "DEPRECATION"]
-        _             -> expectationFailure "disabled categories missing"
 
     it "v5.6: uses notifications_disabled_classifications key" $ do
       let m = notifExtra 0x0605 Nothing ["HINT"]
       M.lookup "notifications_disabled_classifications" m `shouldBe` Just (L [T "HINT"])
-      -- old key should not be present
       M.lookup "notifications_disabled_categories" m `shouldBe` Nothing
 
-    it "v5.2: includes both severity and disabled" $ do
-      let m = notifExtra 0x0205 (Just "OFF") ["HINT"]
+    it "v5.6: includes both severity and disabled" $ do
+      let m = notifExtra 0x0605 (Just "OFF") ["HINT"]
       M.lookup "notifications_minimum_severity" m `shouldBe` Just (T "OFF")
-      M.lookup "notifications_disabled_categories" m `shouldBe` Just (L [T "HINT"])
+      M.lookup "notifications_disabled_classifications" m `shouldBe` Just (L [T "HINT"])
 
-    it "v5.2: empty disabled list produces no key" $ do
-      let m = notifExtra 0x0205 Nothing []
-      M.lookup "notifications_disabled_categories" m `shouldBe` Nothing
+    it "v5.6: empty disabled list produces no key" $ do
+      let m = notifExtra 0x0605 Nothing []
+      M.lookup "notifications_disabled_classifications" m `shouldBe` Nothing
 
 -- | Tests for ToStructure Request instances (issue #4)
 toStructureRequestTests :: Spec
@@ -653,16 +622,16 @@ toStructureRequestTests =
           M.lookup "scheme" m `shouldBe` Just (T "basic")
         other -> expectationFailure ("unexpected: " <> show other)
 
-    it "RequestInit v5 produces sig 0x01 without creds" $ do
-      case roundtrip (RequestInit "hasbolt/1.8" auth 0x0105 Nothing) of
+    it "RequestInit v5.6 produces sig 0x01 without creds" $ do
+      case roundtrip (RequestInit "hasbolt/1.8" auth 0x0605 Nothing) of
         Right (Structure sig [M m]) -> do
           sig `shouldBe` 0x01
           M.lookup "user_agent" m `shouldBe` Just (T "hasbolt/1.8")
           M.lookup "scheme" m `shouldBe` Nothing
         other -> expectationFailure ("unexpected: " <> show other)
 
-    it "RequestInit v5 with routing includes routing key" $ do
-      case roundtrip (RequestInit "hasbolt/1.8" auth 0x0105 (Just routingCtx)) of
+    it "RequestInit v5.6 with routing includes routing key" $ do
+      case roundtrip (RequestInit "hasbolt/1.8" auth 0x0605 (Just routingCtx)) of
         Right (Structure sig [M m]) -> do
           sig `shouldBe` 0x01
           M.lookup "routing" m `shouldBe` Just (M routingCtx)
