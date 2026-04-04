@@ -1,12 +1,13 @@
 HasBOLT
 =======
 
-[![Travis](https://img.shields.io/travis/zmactep/hasbolt.svg)](https://travis-ci.org/zmactep/hasbolt)
-[![GitHub Build](https://github.com/zmactep/hasbolt/workflows/build/badge.svg)](https://github.com/zmactep/hasbolt/actions?query=workflow%3A%22build%22)
+[![GitHub Build](https://github.com/zmactep/hasbolt/actions/workflows/haskell-ci.yml/badge.svg)](https://github.com/zmactep/hasbolt/actions/workflows/haskell-ci.yml)
 [![hackage](https://img.shields.io/hackage/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
-[![hackage-deps](https://img.shields.io/hackage-deps/v/hasbolt.svg)](https://hackage.haskell.org/package/hasbolt)
 
-Haskell driver for Neo4j 3+ (BOLT protocol)
+Haskell driver for Neo4j, BOLT protocol versions 3 and 5.6+.
+
+This library skips BOLT 4 entirely and doesn't implement differences between various 5.x minor
+versions, so connection will fail if the server does not accept version proposal.
 
 Documentation
 -------------
@@ -42,7 +43,7 @@ nineties = do records <- query "MATCH (nineties:Movie) WHERE nineties.released >
 -- you can use 'queryP' function that takes not only the Cypher request but also
 -- a parameters dictionary.
 genericABN :: RecordValue a => Text -> BoltActionT IO [a]
-genericABN name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN tom"
+genericABN name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS $name RETURN tom"
                                      (props ["name" =: name])
                      nodes <- forM toms' $ \record -> record `at` "tom"
                      forM nodes $ \node -> nodeProps node `at` "name"
@@ -50,8 +51,8 @@ genericABN name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS
 -- Hasbolt has a special 'Node' type to unpack graph nodes. You also can find 'Relationship',
 -- 'URelationship' and 'Path' as built-in types.
 actorsByNameYear :: Text -> Int -> BoltActionT IO [Node]
-actorsByNameYear name year = do toms' <- queryP "MATCH (n:Person {name: {props}.name, born: {props}.born}) RETURN n" 
-                                                (props ["props" =: props ["name" =: name, "born" =: year]])
+actorsByNameYear name year = do toms' <- queryP "MATCH (n:Person {name: $name, born: $born}) RETURN n"
+                                                (props ["name" =: name, "born" =: year])
                                 forM toms' $ \record -> record `at` "n"
 
 actorsByName :: Text -> BoltActionT IO [Text]
@@ -63,14 +64,14 @@ wrongType = genericABN
 
 -- Database server answers with a 'ResponseError' exception on any syntax error or internal database problem.
 typoInRequest :: Text -> BoltActionT IO [Text]
-typoInRequest name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN not_tom"
+typoInRequest name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS $name RETURN not_tom"
                                         (props ["name" =: name])
                         nodes <- forM toms' $ \record -> record `at` "tom"
                         forM nodes $ \node -> nodeProps node `at` "name"
 
 -- 'RecordHasNoKey' is thrown in case of a wrong key usage in 'at'.
 typoInField :: Text -> BoltActionT IO [Text]
-typoInField name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS {name} RETURN tom" 
+typoInField name = do toms' <- queryP "MATCH (tom:Person) WHERE tom.name CONTAINS $name RETURN tom"
                                       (props ["name" =: name])
                       nodes <- forM toms' $ \record -> record `at` "not_tom"
                       forM nodes $ \node -> nodeProps node `at` "name"
@@ -112,18 +113,25 @@ Notes
 
 * Do not forget to import `Data.Default` to use default connection configuration.
 * `OverloadedStrings` are very welcome, as the library doesn't use `String`s at all.
-* You can use `Database.Bolt.Lazy` to work with lazy IO. In this case do not forget to read all the records before you send a next query.
+* You can use `Database.Bolt.Lazy` to work with lazy IO. In this case do not forget to read all the
+  records before you send a next query. *Important*: not compatible with RouterPool.
 * See [`test/TransactionSpec.hs`](https://github.com/zmactep/hasbolt/blob/master/test/TransactionSpec.hs) for an example of transactions usage.
 * Feel free to implement your own serialization procedures with `Database.Bolt.Serialization` module import.
-* Pipes work great with [resource-pool](https://hackage.haskell.org/package/resource-pool).
-* For neo4j 3.4+ use `version = 2` in connection configuration. This allows you to use [new datatypes](#new-types).
+* For Neo4j clusters, use the built-in `RouterPool` (`connectRouterPool`/`runRouterPool`) which handles topology discovery, connection pooling, and read/write routing. For single-server setups, pipes work great with [resource-pool](https://hackage.haskell.org/package/resource-pool).
+* The default BOLT protocol version is v5 (5.6–5.8), which works with Neo4j 5.x. The driver also supports older servers — the handshake will negotiate v3 if the server doesn't support v5.
+* For neo4j 3.4+ spatial/temporal types, see [new datatypes](#new-types).
 * You can use both syntax variants to create properties dictionaries: `fromList [("born", I 1962)]` or `props ["born" =: 1962]`.
 * Note that you have to make a type hint for `Text` values in the second construction, as Haskell cannot deduce it on its own.
+* Use `$param` syntax for Cypher parameters (the old `{param}` syntax was removed in Neo4j 5).
 
 New types
 ---------
 
-Neo4j 3.4+ implements BOLT v2 protocol (that still doesn't have any specification). Code inspection of [neo4j sources](https://github.com/neo4j/neo4j) led me to these new data types in v2. All of them are just structures with different signatures and fields.
+Neo4j 3.4+ implements BOLT v2 protocol with spatial and temporal data types. They are already
+available in `hasbolt`, since lowest supported version is BOLT v3.
+
+All of them are just structures with different signatures and fields.
+
 * Point2D
 ```haskell
 signature = 'X'
@@ -203,7 +211,7 @@ Codes of Coordinate Reference Systems:
 
 ```haskell
 λ> :set -XScopedTypeVariables 
-λ> pipe <- connect $ def { user = "neo4j", password = "neo4j", version = 2 }
+λ> pipe <- connect $ def { user = "neo4j", password = "neo4j" }
 λ> point :: Value <- run pipe $ do records <- query "RETURN point({x: 1, y: 2, z: 3}) as point"
                                    (head records) `at` "point"
 λ> point 

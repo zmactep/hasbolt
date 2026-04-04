@@ -1,5 +1,6 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 module Database.Bolt.Connection.Pipe where
 
@@ -10,9 +11,10 @@ import           Database.Bolt.Value.Helpers
 import           Database.Bolt.Value.Instances
 import           Database.Bolt.Value.Type            (BoltValue (pack, unpackT),
                                                       FromStructure (fromStructure),
-                                                      ToStructure (toStructure), unpackAction)
+                                                      ToStructure (toStructure), Value,
+                                                      unpackAction, (=:))
 
-import           Control.Exception                   (throwIO)
+import           Control.Exception                   (SomeException, catch, throwIO)
 import           Control.Monad                       (forM_, unless, void, when)
 import           Control.Monad.Except                (ExceptT, MonadError (..), runExceptT)
 import           Control.Monad.Trans                 (MonadIO (..))
@@ -23,25 +25,37 @@ import qualified Data.ByteString                     as B (concat, length)
 import qualified Data.ByteString.Lazy                as BSL
 import qualified Data.ByteString.Lazy.Internal       as BSL
 import           Data.Int                            (Int64)
-import           Data.Word                           (Word16)
+import           Data.Map.Strict                     (Map, fromList)
+import           Data.Text                           (Text)
+import           Data.Word                           (Word16, Word32)
 import           GHC.Stack                           (HasCallStack)
 
 type MonadPipe m = (MonadIO m, MonadError BoltError m)
 
 -- |Creates new 'Pipe' instance to use all requests through
 connect :: MonadIO m => HasCallStack => BoltCfg -> m Pipe
-connect = makeIO connect'
+connect cfg = connectWithRouting cfg Nothing
+
+-- |Like 'connect' but passes routing context in HELLO.
+connectWithRouting :: MonadIO m => HasCallStack => BoltCfg -> Maybe (Map Text Value) -> m Pipe
+connectWithRouting cfg mRouting = makeIO connectWithRouting' cfg
   where
-    connect' :: MonadPipe m => BoltCfg -> m Pipe
-    connect' bcfg = do conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
-                       let pipe = Pipe conn (maxChunkSize bcfg) (version bcfg)
-                       handshake pipe bcfg
-                       pure pipe
+    connectWithRouting' :: MonadPipe m => BoltCfg -> m Pipe
+    connectWithRouting' bcfg = do
+      conn <- C.connect (secure bcfg) (host bcfg) (fromIntegral $ port bcfg) (socketTimeout bcfg)
+      let pipe = Pipe conn (maxChunkSize bcfg) 0
+                      (notifMinSeverity bcfg) (notifDisabledClass bcfg)
+                      (database bcfg)
+      handshake pipe bcfg mRouting
 
 -- |Closes 'Pipe'
 close :: MonadIO m => HasCallStack => Pipe -> m ()
-close pipe = do when (isNewVersion $ pipe_version pipe) $ makeIO (`flush` RequestGoodbye) pipe
-                C.close $ connection pipe
+close pipe = liftIO $ do
+    makeIO (`flush` RequestGoodbye) pipe `catch` ignoreAll
+    C.close $ connection pipe
+  where
+    ignoreAll :: SomeException -> IO ()
+    ignoreAll _ = pure ()
 
 -- |Resets current sessions
 reset :: MonadIO m => HasCallStack => Pipe -> m ()
@@ -64,15 +78,12 @@ makeIO action arg = do actionIO <- runExceptT (action arg)
 
 -- |Processes error via ackFailure or reset
 processError :: MonadIO m => HasCallStack => Pipe -> m ()
-processError pipe@Pipe{..} = if isNewVersion pipe_version
+processError pipe@Pipe{..} = if isV3 pipe_version
                                then reset pipe
                                else makeIO ackFailure pipe
 
 ackFailure :: MonadPipe m => HasCallStack => Pipe -> m ()
 ackFailure pipe = flush pipe RequestAckFailure >> void (fetch pipe)
-
-discardAll :: MonadPipe m => HasCallStack => Pipe -> m ()
-discardAll pipe = flush pipe RequestDiscardAll >> void (fetch pipe)
 
 flush :: MonadPipe m => HasCallStack => Pipe -> Request -> m ()
 flush pipe request = do forM_ chunks $ C.sendMany conn . mkChunk
@@ -106,20 +117,58 @@ fetch pipe = do bs <- chunks
 
 -- Helper functions
 
-handshake :: MonadPipe m => HasCallStack => Pipe -> BoltCfg -> m ()
-handshake pipe bcfg = do let conn = connection pipe
-                         C.send conn (encodeStrict $ magic bcfg)
-                         C.send conn (boltVersionProposal bcfg)
-                         serverVersion <- decode <$> recvChunk conn 4
-                         when (serverVersion /= version bcfg) $
-                           throwError UnsupportedServerVersion
-                         flush pipe (createInit bcfg)
-                         response <- fetch pipe
-                         unless (isSuccess response) $
-                           throwError AuthentificationFailed
+-- |Perform the BOLT handshake: version negotiation, authentication, and session init.
+--
+-- The flow differs by protocol version:
+--
+-- __All versions:__ send magic preamble and version proposal, receive negotiated version.
+--
+-- __BOLT v3:__ send @HELLO@ with @user_agent@ and inline credentials (@scheme@,
+-- @principal@, @credentials@). A single @SUCCESS@ completes authentication.
+--
+-- __BOLT v5.6+:__ send @HELLO@ with @user_agent@ (and optional @routing@ context,
+-- @bolt_agent@ from v5.3) but /without/ credentials. Then send a separate @LOGON@
+-- message carrying the credentials. Both must return @SUCCESS@.
+--
+-- When the client proposes v5+, a fallback to v3 is also offered in the version
+-- proposal so the server can downgrade if it doesn't support v5.
+--
+-- BOLT v2, v4 and versions of BOLT 5 lower than 5.6 are not supported.
+handshake :: MonadPipe m => HasCallStack => Pipe -> BoltCfg -> Maybe (Map Text Value) -> m Pipe
+handshake pipe bcfg mRouting = do let conn = connection pipe
+                                  C.send conn (encodeStrict $ magic bcfg)
+                                  C.send conn (boltVersionProposal bcfg)
 
+                                  serverVersion <- decode <$> recvChunk conn 4
+                                  unless (versionAccepted serverVersion) $
+                                    throwError UnsupportedServerVersion
+
+                                  let pipe' = pipe { pipe_version = serverVersion }
+                                  flush pipe' (createInit bcfg serverVersion mRouting)
+
+                                  response <- fetch pipe'
+
+                                  unless (isSuccess response) $
+                                    throwError AuthentificationFailed
+
+                                  when (isV5_6 serverVersion) $ do
+                                    flush pipe' (RequestLogon (createAuthToken bcfg))
+                                    logonResp <- fetch pipe'
+                                    unless (isSuccess logonResp) $
+                                      throwError AuthentificationFailed
+
+                                  pure pipe'
+
+-- |Check if server version is acceptable given our supported range.
+versionAccepted :: Word32 -> Bool
+versionAccepted server = server /= 0 && (server == 3 || isV5_6 server)
+
+-- | Propose default version from 'BoltCfg' instance, but also propose version 3
+-- to support old servers.
+--
+-- Routing connection will fail if server negotiates version lower than 5.6.
 boltVersionProposal :: BoltCfg -> ByteString
-boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 0, 0, 0]
+boltVersionProposal bcfg = B.concat $ encodeStrict <$> [version bcfg, 3, 0, 0 :: Word32]
 
 recvChunk :: MonadPipe m => HasCallStack => ConnectionWithTimeout -> Word16 -> m BSL.ByteString
 recvChunk conn size = helper (fromIntegral size)

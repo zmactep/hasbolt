@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -Wwarn=incomplete-uni-patterns #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Database.Bolt.Connection
@@ -27,7 +27,7 @@ import           Control.Monad                 (void)
 import           Control.Monad.Except          (MonadError (..), runExceptT)
 import           Control.Monad.Reader          (MonadReader (..), runReaderT)
 import           Control.Monad.Trans           (MonadIO (..))
-import           Data.Map.Strict               (Map, empty, fromList)
+import           Data.Map.Strict               (Map, empty, fromList, union)
 import           Data.Text                     (Text)
 import           GHC.Stack                     (HasCallStack)
 
@@ -62,8 +62,13 @@ query' cypher = queryP' cypher empty
 
 -- |Runs Cypher query with parameters and ignores response
 queryP_ :: MonadIO m => HasCallStack => Text -> Map Text Value -> BoltActionT m ()
-queryP_ cypher params = do void $ sendRequest cypher params empty
-                           ask >>= liftE . discardAll
+queryP_ cypher params = do pipe <- ask
+                           void $ sendRequest cypher params empty
+                           let discardReq = if isV5_6 (pipe_version pipe)
+                                            then RequestDiscard (fromList ["n" =: (-1 :: Int)])
+                                            else RequestDiscardAll
+                           liftE $ do flush pipe discardReq
+                                      void $ fetch pipe
 
 -- |Runs Cypher query and ignores response
 query_ :: MonadIO m => HasCallStack => Text -> BoltActionT m ()
@@ -78,11 +83,16 @@ querySL strict cypher params = do keys <- pullKeys cypher params empty
 pullKeys :: MonadIO m => HasCallStack => Text -> Map Text Value -> Map Text Value -> BoltActionT m [Text]
 pullKeys cypher params ext = do pipe <- ask
                                 status <- sendRequest cypher params ext
-                                liftE $ flush pipe RequestPullAll
+                                let pullReq = if isV5_6 (pipe_version pipe)
+                                              then RequestPull (fromList ["n" =: (-1 :: Int)])
+                                              else RequestPullAll
+                                liftE $ flush pipe pullReq
                                 mkKeys status
   where
     mkKeys :: MonadIO m => Response -> BoltActionT m [Text]
-    mkKeys (ResponseSuccess response) = response `at` "fields" `catchError` \(RecordHasNoKey _) -> pure []
+    mkKeys (ResponseSuccess response) = response `at` "fields" `catchError` \case
+                                          RecordHasNoKey _ -> pure []
+                                          e                -> throwError e
     mkKeys x                          = throwError $ ResponseError (mkFailure x)
 
 pullRecords :: MonadIO m => HasCallStack => Bool -> [Text] -> BoltActionT m [Record]
@@ -121,6 +131,7 @@ sendRawRequest req = do
 sendRequest :: MonadIO m => HasCallStack => Text -> Map Text Value -> Map Text Value -> BoltActionT m Response
 sendRequest cypher params ext =
   do pipe <- ask
-     if isNewVersion (pipe_version pipe)
-        then sendRawRequest $ RequestRunV3 cypher params ext
+     if isV3 (pipe_version pipe)
+        then let nExtra = notifExtra (pipe_version pipe) (pipeNotificationsMinimumSeverity pipe) (pipeNotificationsDisabledCategories pipe)
+             in sendRawRequest $ RequestRunV3 cypher params (ext `union` nExtra `union` dbExtra (pipeDatabase pipe))
         else sendRawRequest $ RequestRun cypher params

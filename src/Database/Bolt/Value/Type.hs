@@ -104,6 +104,8 @@ data Value = N ()
            | L [Value]
            | M (Map Text Value)
            | S Structure
+           | Bytes ByteString -- ^Raw byte data. PackStream Bytes type.
+                              -- See: https://neo4j.com/docs/bolt/current/packstream/#data-type-bytes
   deriving stock (Show, Eq, Generic)
   deriving anyclass (NFData)
 
@@ -150,8 +152,66 @@ instance IsValue a => IsValue (Maybe a) where
   toValue (Just a) = toValue a
   toValue _        = N ()
 
+-- |Allows 'ByteString' to be used as a BOLT value via the 'Bytes' constructor.
+-- See: https://neo4j.com/docs/bolt/current/packstream/#data-type-bytes
+instance IsValue ByteString where
+  toValue = Bytes
+
 instance IsValue (Map Text Value) where
   toValue = M
+
+-- | IsValue instances for tuples (2-15 elements)
+-- Tuples are converted to BOLT lists.
+
+instance (IsValue a, IsValue b) => IsValue (a, b) where
+  toValue (a, b) = L [toValue a, toValue b]
+
+instance (IsValue a, IsValue b, IsValue c) => IsValue (a, b, c) where
+  toValue (a, b, c) = L [toValue a, toValue b, toValue c]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d) => IsValue (a, b, c, d) where
+  toValue (a, b, c, d) = L [toValue a, toValue b, toValue c, toValue d]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e) => IsValue (a, b, c, d, e) where
+  toValue (a, b, c, d, e) = L [toValue a, toValue b, toValue c, toValue d, toValue e]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f) => IsValue (a, b, c, d, e, f) where
+  toValue (a, b, c, d, e, f) = L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g) => IsValue (a, b, c, d, e, f, g) where
+  toValue (a, b, c, d, e, f, g) = L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h) => IsValue (a, b, c, d, e, f, g, h) where
+  toValue (a, b, c, d, e, f, g, h) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i) => IsValue (a, b, c, d, e, f, g, h, i) where
+  toValue (a, b, c, d, e, f, g, h, i) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j) => IsValue (a, b, c, d, e, f, g, h, i, j) where
+  toValue (a, b, c, d, e, f, g, h, i, j) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k) => IsValue (a, b, c, d, e, f, g, h, i, j, k) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m, IsValue n) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m, toValue n]
+
+instance (IsValue a, IsValue b, IsValue c, IsValue d, IsValue e, IsValue f, IsValue g, IsValue h, IsValue i, IsValue j, IsValue k, IsValue l, IsValue m, IsValue n, IsValue o) => IsValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) where
+  toValue (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o) =
+    L [toValue a, toValue b, toValue c, toValue d, toValue e, toValue f, toValue g, toValue h, toValue i, toValue j, toValue k, toValue l, toValue m, toValue n, toValue o]
 
 -- |Wrap key-value pair with 'Value' datatype
 (=:) :: IsValue a => Text -> a -> (Text, Value)
@@ -165,23 +225,28 @@ props = fromList
 
 -- == Neo4j subjects
 
-data Node = Node { nodeIdentity :: Int             -- ^Neo4j node identifier
-                 , labels       :: [Text]          -- ^Set of node labels (types)
-                 , nodeProps    :: Map Text Value  -- ^Dict of node properties
+data Node = Node { nodeIdentity  :: Int             -- ^Neo4j node identifier
+                 , labels        :: [Text]          -- ^Set of node labels (types)
+                 , nodeProps     :: Map Text Value  -- ^Dict of node properties
+                 , nodeElementId :: Text            -- ^Element ID string (v5+, empty for v3)
                  }
   deriving (Show, Eq)
 
-data Relationship = Relationship { relIdentity :: Int            -- ^Neo4j relationship identifier
-                                 , startNodeId :: Int            -- ^Identifier of start node
-                                 , endNodeId   :: Int            -- ^Identifier of end node
-                                 , relType     :: Text           -- ^Relationship type
-                                 , relProps    :: Map Text Value -- ^Dict of relationship properties
+data Relationship = Relationship { relIdentity        :: Int            -- ^Neo4j relationship identifier
+                                 , startNodeId        :: Int            -- ^Identifier of start node
+                                 , endNodeId          :: Int            -- ^Identifier of end node
+                                 , relType            :: Text           -- ^Relationship type
+                                 , relProps           :: Map Text Value -- ^Dict of relationship properties
+                                 , relElementId       :: Text           -- ^Element ID string (v5+, empty for v3)
+                                 , startNodeElementId :: Text           -- ^Start node element ID (v5+, empty for v3)
+                                 , endNodeElementId   :: Text           -- ^End node element ID (v5+, empty for v3)
                                  }
   deriving (Show, Eq)
 
-data URelationship = URelationship { urelIdentity :: Int            -- ^Neo4j relationship identifier
-                                   , urelType     :: Text           -- ^Relationship type
-                                   , urelProps    :: Map Text Value -- ^Dict of relationship properties
+data URelationship = URelationship { urelIdentity  :: Int            -- ^Neo4j relationship identifier
+                                   , urelType      :: Text           -- ^Relationship type
+                                   , urelProps     :: Map Text Value -- ^Dict of relationship properties
+                                   , urelElementId :: Text           -- ^Element ID string (v5+, empty for v3)
                                    }
   deriving (Show, Eq)
 

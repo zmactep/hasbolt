@@ -5,10 +5,12 @@
 
 module Database.Bolt.Connection.Type where
 
-import           Database.Bolt.Value.Type hiding (unpack)
+import           Database.Bolt.Connection.RoutingTable (AccessMode(..))
+import           Database.Bolt.Value.Type              hiding (unpack)
 
 import           Control.DeepSeq                 (NFData(..), rwhnf)
 import           Control.Exception               (Exception (..), SomeException, handle)
+import           Control.Monad.Catch             (MonadCatch (..), MonadThrow (..))
 import           Control.Monad.Trans             (MonadTrans (..), MonadIO (..))
 import           Control.Monad.Reader            (MonadReader (..), ReaderT)
 import           Control.Monad.Except            (MonadError (..), ExceptT (..))
@@ -41,25 +43,32 @@ data BoltError = UnsupportedServerVersion
                | ResponseError ResponseError
                | RecordHasNoKey Text
                | NonHasboltError SomeException
+               | RoutingTableUnavailable
+               | NoServersAvailable AccessMode
+               | RoutingError Text
                | HasCallStack => TimeOut
 
 instance Show BoltError where
-  show UnsupportedServerVersion = "Cannot connect: unsupported server version"
-  show AuthentificationFailed   = "Cannot connect: authentification failed"
-  show ResetFailed              = "Cannot reset current pipe: recieved failure from server"
-  show CannotReadChunk          = "Cannot fetch: chunk read failed"
-  show (WrongMessageFormat msg) = "Cannot fetch: wrong message format (" <> show msg <> ")"
-  show NoStructureInResponse    = "Cannot fetch: no structure in response"
-  show (ResponseError re)       = show re
-  show (RecordHasNoKey key)     = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
-  show (NonHasboltError msg)    = "User error: " <> show msg
-  show TimeOut                  = "Operation timeout\n" <> prettyCallStack callStack
+  show UnsupportedServerVersion       = "Cannot connect: unsupported server version"
+  show AuthentificationFailed         = "Cannot connect: authentification failed"
+  show ResetFailed                    = "Cannot reset current pipe: recieved failure from server"
+  show CannotReadChunk                = "Cannot fetch: chunk read failed"
+  show (WrongMessageFormat msg)       = "Cannot fetch: wrong message format (" <> show msg <> ")"
+  show NoStructureInResponse          = "Cannot fetch: no structure in response"
+  show (ResponseError re)             = show re
+  show (RecordHasNoKey key)           = "Cannot unpack record: key '" <> unpack key <> "' is not presented"
+  show (NonHasboltError msg)          = "User error: " <> show msg
+  show RoutingTableUnavailable        = "Routing table could not be obtained from server"
+  show (NoServersAvailable ReadMode)  = "No servers available for read operations"
+  show (NoServersAvailable WriteMode) = "No servers available for write operations"
+  show (RoutingError msg)             = "Routing error: " <> unpack msg
+  show TimeOut                        = "Operation timeout\n" <> prettyCallStack callStack
 
 instance Exception BoltError
 
 -- |Monad Transformer to do all BOLT actions in
 newtype BoltActionT m a = BoltActionT { runBoltActionT :: ReaderT Pipe (ExceptT BoltError m) a }
-  deriving (Functor, Applicative, Monad, MonadError BoltError, MonadReader Pipe)
+  deriving (Functor, Applicative, Monad, MonadError BoltError, MonadReader Pipe, MonadThrow, MonadCatch)
 
 instance MonadTrans BoltActionT where
   lift = BoltActionT . lift . lift
@@ -71,32 +80,38 @@ liftE :: Monad m => ExceptT BoltError m a -> BoltActionT m a
 liftE = BoltActionT . lift
 
 -- |Configuration of driver connection
-data BoltCfg = BoltCfg { magic         :: Word32  -- ^'6060B017' value
-                       , version       :: Word32  -- ^Major version number (e.g. '00000104' for 4.1)
-                       , userAgent     :: Text    -- ^Driver user agent
-                       , maxChunkSize  :: Word16  -- ^Maximum chunk size of request
-                       , socketTimeout :: Int     -- ^Driver socket timeout in seconds
-                       , host          :: String  -- ^Neo4j server hostname
-                       , port          :: Int     -- ^Neo4j server port
-                       , authType      :: Text    -- ^Neo4j auth schema
-                       , user          :: Text    -- ^Neo4j user
-                       , password      :: Text    -- ^Neo4j password
-                       , secure        :: Bool    -- ^Use TLS or not
+data BoltCfg = BoltCfg { magic              :: Word32      -- ^'6060B017' value
+                       , version            :: Word32      -- ^Major version number (default 0x00020805 for 5.6 through 5.8)
+                       , userAgent          :: Text        -- ^Driver user agent (default "hasbolt/1.8")
+                       , maxChunkSize       :: Word16      -- ^Maximum chunk size of request
+                       , socketTimeout      :: Int         -- ^Driver socket timeout in seconds
+                       , host               :: String      -- ^Neo4j server hostname
+                       , port               :: Int         -- ^Neo4j server port
+                       , authType           :: Text        -- ^Neo4j auth schema (@none@, @basic@, @bearer@ or @kerberos@, default: @basic). Currently only @basic@ is tested.
+                       , user               :: Text        -- ^Neo4j user
+                       , password           :: Text        -- ^Neo4j password
+                       , secure             :: Bool        -- ^Use TLS or not
+                       , notifMinSeverity   :: Maybe Text  -- ^Min notification severity: @"OFF"@, @"WARNING"@, @"INFORMATION"@
+                       , notifDisabledClass :: [Text]      -- ^Disabled notification categories\/classifications
+                       , database           :: Maybe Text  -- ^Target database name (Nothing = default)
                        }
   deriving (Eq, Show, Read)
 
 instance Default BoltCfg where
-  def = BoltCfg { magic         = 1616949271
-                , version       = 3
-                , userAgent     = "hasbolt/1.5"
-                , maxChunkSize  = 65535
-                , socketTimeout = 5
-                , host          = "127.0.0.1"
-                , port          = 7687
-                , authType      = "basic"
-                , user          = ""
-                , password      = ""
-                , secure        = False
+  def = BoltCfg { magic              = 1616949271
+                , version            = 0x00020805
+                , userAgent          = "hasbolt/1.8"
+                , maxChunkSize       = 65535
+                , socketTimeout      = 5
+                , host               = "127.0.0.1"
+                , port               = 7687
+                , authType           = "basic"
+                , user               = ""
+                , password           = ""
+                , secure             = False
+                , notifMinSeverity   = Nothing
+                , notifDisabledClass = []
+                , database           = Nothing
                 }
 
 data ConnectionWithTimeout
@@ -106,9 +121,18 @@ data ConnectionWithTimeout
         -- ^ Timeout in microseconds
       }
 
-data Pipe = Pipe { connection   :: ConnectionWithTimeout -- ^Driver connection socket
-                 , mcs          :: Word16                -- ^Driver maximum chunk size of request
-                 , pipe_version :: Word32                -- ^Connection version 0000mnMJ
+data Pipe = Pipe { connection                          :: ConnectionWithTimeout
+                 -- ^ Driver connection socket
+                 , mcs                                 :: Word16
+                 -- ^ Driver maximum chunk size of request
+                 , pipe_version                        :: Word32
+                 -- ^ Connection version 0000mnMJ
+                 , pipeNotificationsMinimumSeverity    :: Maybe Text
+                 -- ^ Notification minimum severity
+                 , pipeNotificationsDisabledCategories :: [Text]
+                 -- ^ Disabled notification categories\/classifications
+                 , pipeDatabase                        :: Maybe Text
+                 -- ^ Target database name
                  }
 
 instance NFData Pipe where
@@ -118,7 +142,12 @@ data AuthToken = AuthToken { scheme      :: Text
                            , principal   :: Text
                            , credentials :: Text
                            }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show AuthToken where
+  show at = "AuthToken {scheme = " <> show (scheme at)
+         <> ", principal = " <> show (principal at)
+         <> ", credentials = \"<redacted>\"}"
 
 data Response = ResponseSuccess { succMap   :: Map Text Value }
               | ResponseRecord  { recsList  :: [Value] }
@@ -127,9 +156,10 @@ data Response = ResponseSuccess { succMap   :: Map Text Value }
   deriving (Eq, Show)
 
 data Request = RequestInit
-                 { agent   :: Text
-                 , token   :: AuthToken
-                 , isHello :: Bool
+                 { agent       :: Text
+                 , token       :: AuthToken
+                 , initVersion :: Word32
+                 , initRouting :: Maybe (Map Text Value)  -- ^Optional routing context for HELLO
                  }
              | RequestRun
                  { statement  :: Text
@@ -153,4 +183,28 @@ data Request = RequestInit
              | RequestCommit
                -- | Introduced in v3.
              | RequestRollback
+               -- | Introduced in v5.1. Sends auth credentials separately from HELLO.
+             | RequestLogon
+                 { logonToken  :: AuthToken
+                 }
+               -- | Introduced in v5.1.
+             | RequestLogoff
+               -- | Introduced in v5.4. Reports driver API usage.
+             | RequestTelemetry
+                 { telemetryApi :: Int
+                 }
+               -- | Introduced in v4/v5. PULL with extra dict (e.g. @{n: -1}@).
+             | RequestPull
+                 { pullExtra   :: Map Text Value
+                 }
+               -- | Introduced in v4/v5. DISCARD with extra dict (e.g. @{n: -1}@).
+             | RequestDiscard
+                 { discardExtra :: Map Text Value
+                 }
+              -- | Introduced in v4.3. Requests routing table from server.
+             | RequestRoute
+                 { routeContext   :: Map Text Value  -- routing context dict
+                 , routeBookmarks :: [Text]          -- transaction bookmarks
+                 , routeExtra     :: Map Text Value  -- e.g. @{\"db\": \"neo4j\"}@
+                 }
   deriving (Eq, Show)

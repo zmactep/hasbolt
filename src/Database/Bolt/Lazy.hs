@@ -1,9 +1,18 @@
+{- | Lazy API
+
+This module exposes various query functions that use 'System.IO.Unsafe.unsafeInterleaveIO'
+to make fetching result lazy.
+
+When using them, do not forget to read all the records before you send a next query.
+
+__Important__: this is not compatible with t'Database.Bolt.RouterPool'.
+-}
 module Database.Bolt.Lazy
     ( BoltActionT
     , BoltError (..), UnpackError (..)
     , connect, close, reset
     , run, runE, queryP, query, queryP_, query_
-    , transact
+    , transact, transactRead
     , (=:), props
     , Pipe
     , BoltCfg (..)
